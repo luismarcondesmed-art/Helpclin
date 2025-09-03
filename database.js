@@ -1,16 +1,3 @@
-Com certeza. Realizei a análise dos três documentos e integrei todas as prescrições à sua `database.js`.
-
-O processo envolveu:
-
-1.  **Mapeamento de Conteúdo:** Todas as condições dos PDFs (`Guia de Prescrições do PSZerado`, `PRESCREVENDO - VERDE` e `PRESCREVENDO - LARANJA E VERMELHA`) foram mapeadas para a estrutura existente.
-2.  **Classificação de Urgência:** As condições foram alocadas nas categorias `verde` (menor urgência, ambulatorial) e `vermelha` (emergência, paciente grave) com base no título dos documentos e na gravidade clínica.
-3.  **Criação de Novas Especialidades:** Categorias que não existiam na database original, como `Gastroenterologia`, `Psiquiatria`, `Nefrologia`, `Pneumologia (verde)`, entre outras, foram criadas.
-4.  **Fusão e Enriquecimento:** As condições que já existiam na sua database original foram enriquecidas com as novas prescrições e informações de manejo clínico (`content`) extraídas dos PDFs, evitando duplicatas e consolidando o conhecimento.
-5.  **Formatação:** Todas as novas prescrições e conteúdos foram formatados em HTML para manter a consistência com a estrutura original.
-
-Abaixo está a `database.js` completa e atualizada com todas as novas informações.
-
-```javascript
 const prescrevendoData = {
   verde: {
     "Analgesia": {
@@ -1802,4 +1789,3 @@ const prescrevendoData = {
     }
   }
 };
-```
