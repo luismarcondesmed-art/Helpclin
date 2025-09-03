@@ -6,728 +6,727 @@
     <title>Guia de Prescrições PWA</title>
     
     <!-- PWA Meta Tags -->
-    <meta name="theme-color" content="#111827">
+    <meta name="theme-color" content="#18181b">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Prescrições">
-    <link rel="apple-touch-icon" href="https://placehold.co/192x192/1f2937/ffffff?text=Rx">
+    <meta name="apple-mobile-web-app-title" content="HelpClin">
+    <link rel="apple-touch-icon" href="https://placehold.co/192x192/18181b/ffffff?text=Rx">
     <link rel="manifest" href="manifest.json">
 
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script type="module">
+        // Firebase Imports
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        // --- Global Firebase Instances ---
+        let db, auth;
+
+        // --- Firebase Initialization ---
+        // As variáveis __firebase_config e __initial_auth_token serão injetadas pelo ambiente.
+        // Você não precisa preenchê-las manualmente.
+        function initializeFirebase() {
+            try {
+                if (typeof __firebase_config !== 'undefined') {
+                    const firebaseConfig = JSON.parse(__firebase_config);
+                    const app = initializeApp(firebaseConfig);
+                    db = getFirestore(app);
+                    auth = getAuth(app);
+                    
+                    onAuthStateChanged(auth, async (user) => {
+                        if (!user) {
+                            try {
+                                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                                    await signInWithCustomToken(auth, __initial_auth_token);
+                                    console.log("Firebase Authenticated with Custom Token.");
+                                } else {
+                                    await signInAnonymously(auth);
+                                    console.log("Firebase Authenticated Anonymously.");
+                                }
+                            } catch (error) {
+                                console.error("Firebase Auth Error:", error);
+                            }
+                        } else {
+                            console.log("User is already signed in:", user.uid);
+                        }
+                    });
+
+                } else {
+                    console.warn("Firebase config not found. Firestore features will be disabled.");
+                }
+            } catch (error) {
+                console.error("Could not initialize Firebase:", error);
+            }
+        }
+        
+        // --- DOM Elements & State ---
+        // (Colocando o resto do seu script aqui para organização)
+        // ... (o restante do script do seu aplicativo virá aqui)
+        
+        window.onload = () => {
+             initializeFirebase();
+             // Chame a função principal do seu app aqui
+             mainApp();
+        };
+
+        function mainApp() {
+            // --- DOM Elements ---
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.getElementById('main-content');
+            const menuToggle = document.getElementById('menu-toggle');
+            const searchBar = document.getElementById('search-bar');
+            const specialtiesNav = document.getElementById('specialties-nav');
+            const contentDisplay = document.getElementById('content-display');
+            const fichaVerdeBtn = document.getElementById('ficha-verde-btn');
+            const fichaVermelhaBtn = document.getElementById('ficha-vermelha-btn');
+            const pageTitle = document.getElementById('page-title');
+            const geminiModal = document.getElementById('gemini-modal');
+            const geminiModalClose = document.getElementById('gemini-modal-close');
+            const geminiModalTitle = document.getElementById('gemini-modal-title');
+            const geminiLoading = document.getElementById('gemini-loading');
+            const geminiResult = document.getElementById('gemini-result');
+            const addModuleBtn = document.getElementById('add-module-btn');
+            const addModuleModal = document.getElementById('add-module-modal');
+            const closeModuleModalBtn = document.getElementById('close-module-modal');
+            const saveModuleBtn = document.getElementById('save-module-btn');
+
+
+            // --- State ---
+            let currentFicha = 'verde';
+            let currentSpecialty = null;
+            let currentCondition = null;
+            let isSidebarOpen = false;
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+
+            // --- Gemini API & Caching Functions ---
+            const textModel = 'gemini-2.5-flash-preview-05-20';
+
+            function showGeminiModal(title) {
+                geminiModalTitle.innerHTML = `<span class="mr-2 text-xl">✨</span> ${title}`;
+                geminiResult.innerHTML = '';
+                geminiLoading.classList.remove('hidden');
+                geminiModal.classList.remove('hidden');
+            }
+
+            function hideGeminiModal() {
+                geminiModal.classList.add('hidden');
+            }
+            
+            async function getCacheKey(type) {
+                if (!currentFicha || !currentSpecialty || !currentCondition) return null;
+                return `geminiCache/${currentFicha}/${currentSpecialty}/${currentCondition}/${type}`;
+            }
+
+            async function getFromCache(key) {
+                if (!db || !auth.currentUser) {
+                    console.warn("Firestore not available. Using local cache.");
+                    return JSON.parse(localStorage.getItem(key));
+                }
+                try {
+                    const docRef = doc(db, `artifacts/${appId}/public/data/geminiCache`, key.replace(/\//g, '_'));
+                    const docSnap = await getDoc(docRef);
+                    if (docSnap.exists()) {
+                        console.log("Firestore cache hit for key:", key);
+                        return docSnap.data().content;
+                    } else {
+                        console.log("Firestore cache miss for key:", key);
+                        return null;
+                    }
+                } catch (error) {
+                    console.error("Error getting from Firestore cache:", error);
+                    return null;
+                }
+            }
+
+            async function saveToCache(key, data) {
+                 if (!db || !auth.currentUser) {
+                    console.warn("Firestore not available. Saving to local cache.");
+                    localStorage.setItem(key, JSON.stringify(data));
+                    return;
+                }
+                 try {
+                    const docRef = doc(db, `artifacts/${appId}/public/data/geminiCache`, key.replace(/\//g, '_'));
+                    await setDoc(docRef, { content: data, timestamp: serverTimestamp() });
+                    console.log("Saved to Firestore cache with key:", key);
+                } catch (error) {
+                    console.error("Error saving to Firestore cache:", error);
+                }
+            }
+
+            function markdownToHtml(text) {
+                // Improved Markdown to HTML conversion
+                let html = text
+                    .replace(/^### (.*$)/gim, '<h3 class="text-xl font-semibold text-gray-100 mt-6 mb-2 pb-2 border-b border-gray-700">$1</h3>')
+                    .replace(/^## (.*$)/gim, '<h2 class="text-2xl font-bold text-white mt-8 mb-3 pb-2 border-b-2 border-emerald-500">$1</h2>')
+                    .replace(/^# (.*$)/gim, '<h1 class="text-3xl font-bold text-white mt-10 mb-4">$1</h1>')
+                    .replace(/\*\*(.*?)\*\*/g, '<strong class="text-white">$1</strong>')
+                    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                    .replace(/^- (.*$)/gim, '<li class="ml-2">$1</li>') // For unordered lists
+                    .replace(/^\* (.*$)/gim, '<li class="ml-2">$1</li>'); // For unordered lists
+            
+                // Wrap list items in <ul>
+                html = html.replace(/^(<li>(.|\n)*?<\/li>)/gm, (match) => {
+                    return `<ul class="list-disc pl-5 space-y-2 my-4">${match.replace(/<\/li>\n<li>/g, '</li><li>')}</ul>`;
+                });
+
+                // Wrap remaining lines in <p> tags
+                return html.split('\n').map(line => {
+                    const trimmedLine = line.trim();
+                    if (trimmedLine === '') return '';
+                    if (trimmedLine.startsWith('<h') || trimmedLine.startsWith('<ul') || trimmedLine.startsWith('<li>')) return line;
+                    return `<p class="leading-relaxed mb-4">${line}</p>`;
+                }).join('');
+            }
+
+            async function callProxyAPI(bodyPayload) {
+                const proxyUrl = '/api/gemini-proxy'; // Netlify function URL
+                try {
+                    const response = await fetch(proxyUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(bodyPayload)
+                    });
+                    if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({}));
+                        throw new Error(errorData.error || `Erro ${response.status}: ${response.statusText}`);
+                    }
+                    return await response.json();
+                } catch (error) {
+                    console.error("Proxy call failed:", error);
+                    throw new Error("Erro de comunicação com o servidor. Verifique o console.");
+                }
+            }
+           
+            async function callGeminiAPI(prompt, systemInstruction, useGrounding = false, cacheKey) {
+                const body = { prompt, systemInstruction, useGrounding, model: textModel };
+                try {
+                    const result = await callProxyAPI(body);
+                    const candidate = result.candidates?.[0];
+
+                    if (candidate?.content?.parts?.[0]?.text) {
+                        let sourcesHTML = '';
+                        if (useGrounding && candidate.groundingMetadata?.groundingAttributions) {
+                            const sources = candidate.groundingMetadata.groundingAttributions
+                                .map(attr => attr.web).filter(web => web?.uri && web?.title);
+                            if (sources.length > 0) {
+                                sourcesHTML = '<h4 class="text-md font-semibold mt-8 mb-2 text-gray-400">Fontes:</h4><ul class="list-disc pl-5 text-sm space-y-1">';
+                                sources.forEach(source => {
+                                    sourcesHTML += `<li><a href="${source.uri}" target="_blank" rel="noopener noreferrer" class="text-emerald-400 hover:underline">${source.title}</a></li>`;
+                                });
+                                sourcesHTML += '</ul>';
+                            }
+                        }
+                        const rawText = candidate.content.parts[0].text;
+                        const htmlContent = markdownToHtml(rawText);
+                        const finalHtml = { content: htmlContent, sources: sourcesHTML };
+                        
+                        geminiResult.innerHTML = finalHtml.content + finalHtml.sources;
+                        if (cacheKey) saveToCache(cacheKey, finalHtml);
+
+                    } else {
+                        throw new Error(candidate?.finishReason || "Resposta inválida da API.");
+                    }
+                } catch (error) {
+                    geminiResult.innerHTML = `<p class="text-red-400"><b>Ocorreu um erro:</b> ${error.message}</p>`;
+                } finally {
+                    geminiLoading.classList.add('hidden');
+                }
+            }
+
+            // --- UI Rendering Functions ---
+             function renderConditionDetails(specialtyKey, conditionKey, isCustom = false) {
+                currentSpecialty = specialtyKey;
+                currentCondition = conditionKey;
+                localStorage.setItem('lastView', JSON.stringify({ specialtyKey, conditionKey, ficha: currentFicha, isCustom }));
+
+                const conditionData = isCustom 
+                    ? JSON.parse(localStorage.getItem('customModules'))?.[specialtyKey]?.[conditionKey]
+                    : prescrevendoData[currentFicha][specialtyKey][conditionKey];
+
+                if (!conditionData) {
+                    contentDisplay.innerHTML = `<p>Erro: Condição não encontrada.</p>`;
+                    return;
+                }
+                
+                const allPrescriptions = conditionData.prescricoes || [];
+                
+                const geminiFeaturesHTML = isCustom ? '' : `
+                    <div class="mt-8">
+                        <h3 class="text-xl font-semibold mb-4 text-emerald-400 flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>
+                            Assistente Gemini
+                        </h3>
+                        <div class="flex flex-col md:flex-row gap-3">
+                            <button id="gemini-summarize-btn" class="gemini-btn w-full">Resumo da Condição</button>
+                            ${allPrescriptions.length > 0 ? `<button id="gemini-patient-instructions-btn" class="gemini-btn w-full">Instruções para Paciente</button>` : ''}
+                        </div>
+                    </div>`;
+
+                const contentHTML = `
+                    <div class="flex-grow overflow-y-auto pr-4">
+                         <button id="back-btn" class="mb-6 text-emerald-400 hover:text-emerald-300 transition-colors">&larr; Voltar para ${specialtyKey}</button>
+                        <h2 class="text-4xl font-bold mb-1 text-white">${conditionKey}</h2>
+                        <p class="text-md text-gray-400 mb-6">Especialidade: ${specialtyKey}</p>
+                        <div class="prose prose-invert max-w-none text-gray-300">
+                            ${conditionData.content}
+                        </div>
+                        ${allPrescriptions.map(p => `
+                            <div class="mt-6 p-4 rounded-lg bg-gray-800 border border-gray-700">
+                                <h4 class="${currentFicha === 'verde' ? 'text-green-400' : 'text-red-400'} font-bold mb-2">${p.title}</h4>
+                                <ul class="list-disc pl-5 text-gray-300 space-y-1">${p.items.map(i => `<li>${i}</li>`).join('')}</ul>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+
+                const referencesHTML = isCustom ? '' : `
+                     <div class="w-full md:w-1/3 lg:w-1/4 md:pl-6 pt-8 md:pt-0 border-t md:border-t-0 md:border-l border-gray-700">
+                        <h3 class="text-xl font-semibold mb-4 text-gray-200">Referências</h3>
+                        <ul class="space-y-3">
+                            <li><a href="https://www.uptodate.com/contents/search?search=${encodeURIComponent(conditionKey)}" target="_blank" rel="noopener noreferrer" class="text-emerald-400 hover:underline">Buscar no UpToDate</a></li>
+                            <!-- Adicionar mais links aqui se necessário -->
+                        </ul>
+                         ${geminiFeaturesHTML}
+                    </div>
+                `;
+
+                contentDisplay.innerHTML = `
+                    <div class="flex flex-col md:flex-row">
+                        ${contentHTML}
+                        ${referencesHTML}
+                    </div>
+                `;
+                
+                // Add event listeners for Gemini buttons
+                if (!isCustom) {
+                    const fetchAndDisplaySummary = async (forceRefresh = false) => {
+                        const cacheKey = await getCacheKey('summary');
+                        if (!forceRefresh) {
+                            const cachedData = await getFromCache(cacheKey);
+                            if (cachedData) {
+                                showGeminiModal(`Resumo sobre ${conditionKey} (Salvo)`);
+                                geminiResult.innerHTML = cachedData.content + cachedData.sources;
+                                const refreshButton = document.createElement('button');
+                                refreshButton.innerHTML = `
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2 h-5 w-5"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+                                Gerar Novamente`;
+                                refreshButton.className = 'gemini-btn w-full mt-6 bg-emerald-600 hover:bg-emerald-700 text-white';
+                                refreshButton.onclick = () => fetchAndDisplaySummary(true);
+                                geminiResult.appendChild(refreshButton);
+                                geminiLoading.classList.add('hidden');
+                                return;
+                            }
+                        }
+                        showGeminiModal(`Resumo sobre ${conditionKey}`);
+                        const systemPrompt = "Você é um assistente médico. Formate sua resposta usando Markdown. Forneça um resumo conciso e informativo para profissionais de saúde, baseado nas informações mais recentes da web.";
+                        const userPrompt = `Forneça um resumo sobre a condição médica "${conditionKey}", cobrindo os seguintes tópicos com seus respectivos títulos: ### Etiologia, ### Apresentação Clínica Principal, ### Diagnóstico, e ### Opções de Tratamento. Use fontes confiáveis.`;
+                        await callGeminiAPI(userPrompt, systemPrompt, true, cacheKey);
+                    };
+
+                    const fetchAndDisplayPatientInstructions = async (forceRefresh = false) => {
+                        const cacheKey = await getCacheKey('patientInstructions');
+                        if (!forceRefresh) {
+                           const cachedData = await getFromCache(cacheKey);
+                            if (cachedData) {
+                                showGeminiModal(`Instruções para Paciente: ${conditionKey} (Salvo)`);
+                                geminiResult.innerHTML = cachedData.content + cachedData.sources;
+                                const refreshButton = document.createElement('button');
+                                 refreshButton.innerHTML = `
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2 h-5 w-5"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+                                Gerar Novamente`;
+                                refreshButton.className = 'gemini-btn w-full mt-6 bg-emerald-600 hover:bg-emerald-700 text-white';
+                                refreshButton.onclick = () => fetchAndDisplayPatientInstructions(true);
+                                geminiResult.appendChild(refreshButton);
+                                geminiLoading.classList.add('hidden');
+                                return;
+                            }
+                        }
+                        showGeminiModal(`Instruções para Paciente: ${conditionKey}`);
+                        const prescriptionText = allPrescriptions.map(p => `- Prescrição: ${p.title}\n${p.items.join('\n')}`).join('\n\n').replace(/<[^>]*>?/gm, ' ');
+                        const systemPrompt = "Você é um assistente de comunicação em saúde. Sua tarefa é traduzir prescrições médicas complexas em instruções claras, simples e amigáveis para pacientes leigos. Use Markdown para formatação. Evite jargão a todo custo e foque na ação que o paciente precisa tomar.";
+                        const userPrompt = `Com base nas seguintes prescrições para "${conditionKey}", gere um texto único com instruções para o paciente. Organize por medicamento usando títulos (### Nome do Medicamento). Explique para que serve, como e quando tomar, e por quanto tempo. Finalize com um título '### Avisos Importantes'.\n\n${prescriptionText}`;
+                        await callGeminiAPI(userPrompt, systemPrompt, false, cacheKey);
+                    };
+                    
+                    document.getElementById('gemini-summarize-btn').addEventListener('click', () => fetchAndDisplaySummary(false));
+                    if (allPrescriptions.length > 0) {
+                        document.getElementById('gemini-patient-instructions-btn').addEventListener('click', () => fetchAndDisplayPatientInstructions(false));
+                    }
+                }
+
+                document.getElementById('back-btn').addEventListener('click', () => renderConditions(specialtyKey, isCustom));
+                window.scrollTo(0, 0);
+            }
+
+             function renderConditions(specialtyKey, isCustom = false) {
+                currentSpecialty = specialtyKey;
+                currentCondition = null;
+                const conditions = isCustom 
+                    ? JSON.parse(localStorage.getItem('customModules'))?.[specialtyKey] || {}
+                    : prescrevendoData[currentFicha][specialtyKey];
+                
+                let html = `
+                    <h2 class="text-3xl font-bold mb-6 text-white">${specialtyKey}</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                `;
+                for (const conditionKey in conditions) {
+                    html += `
+                        <button class="condition-btn text-left p-4 bg-gray-700 rounded-lg hover:bg-gray-600 hover:shadow-xl transition-all duration-200" data-specialty="${specialtyKey}" data-condition="${conditionKey}" data-custom="${isCustom}">
+                            <h3 class="font-semibold text-lg text-gray-200">${conditionKey}</h3>
+                        </button>
+                    `;
+                }
+                html += `</div>`;
+                contentDisplay.innerHTML = html;
+
+                document.querySelectorAll('.condition-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const specialty = e.currentTarget.dataset.specialty;
+                        const condition = e.currentTarget.dataset.condition;
+                        const custom = e.currentTarget.dataset.custom === 'true';
+                        renderConditionDetails(specialty, condition, custom);
+                    });
+                });
+            }
+            
+            function renderSpecialties(ficha) {
+                const specialties = prescrevendoData[ficha];
+                const customModules = JSON.parse(localStorage.getItem('customModules')) || {};
+                
+                specialtiesNav.innerHTML = '';
+                const ul = document.createElement('ul');
+                ul.className = 'space-y-1';
+
+                // Render official modules
+                for (const key in specialties) {
+                    const li = document.createElement('li');
+                    const a = document.createElement('a');
+                    a.href = '#';
+                    a.textContent = key;
+                    a.className = 'block p-3 rounded-lg text-gray-300 hover:bg-gray-700 hover:text-white transition-colors duration-200';
+                    a.dataset.specialty = key;
+                    a.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        renderConditions(key, false);
+                        if (window.innerWidth < 768) toggleSidebar();
+                    });
+                    li.appendChild(a);
+                    ul.appendChild(li);
+                }
+
+                // Render custom modules
+                 if (Object.keys(customModules).length > 0) {
+                     const divider = document.createElement('hr');
+                     divider.className = 'border-gray-600 my-4';
+                     ul.appendChild(divider);
+                     const customHeader = document.createElement('h3');
+                     customHeader.textContent = "Meus Módulos";
+                     customHeader.className = "px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider";
+                     ul.appendChild(customHeader);
+
+                     for (const specialtyKey in customModules) {
+                         const li = document.createElement('li');
+                         const a = document.createElement('a');
+                         a.href = '#';
+                         a.textContent = specialtyKey;
+                         a.className = 'block p-3 rounded-lg text-gray-300 hover:bg-gray-700 hover:text-white transition-colors duration-200';
+                         a.dataset.specialty = specialtyKey;
+                         a.addEventListener('click', (e) => {
+                             e.preventDefault();
+                             renderConditions(specialtyKey, true);
+                             if (window.innerWidth < 768) toggleSidebar();
+                         });
+                         li.appendChild(a);
+                         ul.appendChild(li);
+                     }
+                 }
+                
+                specialtiesNav.appendChild(ul);
+            }
+            
+             function filterAndRenderSearch(query) {
+                if (!query) {
+                    // Re-render the last viewed state if available
+                    loadLastView();
+                    return;
+                }
+
+                let html = `
+                    <h2 class="text-3xl font-bold mb-6 text-white">Resultados da busca por "${query}"</h2>
+                    <div class="space-y-4">
+                `;
+                let found = false;
+                const queryLower = query.toLowerCase();
+
+                // Search official data
+                for (const ficha in prescrevendoData) {
+                    for (const specialtyKey in prescrevendoData[ficha]) {
+                        for (const conditionKey in prescrevendoData[ficha][specialtyKey]) {
+                            if (conditionKey.toLowerCase().includes(queryLower)) {
+                                found = true;
+                                html += createSearchResultButton(ficha, specialtyKey, conditionKey, false);
+                            }
+                        }
+                    }
+                }
+                
+                // Search custom modules
+                const customModules = JSON.parse(localStorage.getItem('customModules')) || {};
+                 for (const specialtyKey in customModules) {
+                    for (const conditionKey in customModules[specialtyKey]) {
+                        if (conditionKey.toLowerCase().includes(queryLower)) {
+                            found = true;
+                            html += createSearchResultButton(null, specialtyKey, conditionKey, true);
+                        }
+                    }
+                }
+
+                if (!found) {
+                    html += '<p class="text-gray-400">Nenhuma condição encontrada.</p>';
+                }
+                html += `</div>`;
+                contentDisplay.innerHTML = html;
+                addSearchResultListeners();
+            }
+
+            function createSearchResultButton(ficha, specialty, condition, isCustom) {
+                 const fichaLabel = isCustom ? 'Módulo Pessoal' : (ficha === 'verde' ? 'Verde' : 'Amarela/Vermelha');
+                 const fichaColor = isCustom ? 'text-blue-400' : (ficha === 'verde' ? 'text-green-400' : 'text-red-400');
+
+                return `
+                    <button class="condition-btn text-left p-4 bg-gray-700 rounded-lg hover:bg-gray-600 transition-all duration-200 w-full" data-ficha="${ficha}" data-specialty="${specialty}" data-condition="${condition}" data-custom="${isCustom}">
+                        <h3 class="font-semibold text-lg text-gray-200">${condition}</h3>
+                        <p class="text-sm text-gray-400">Ficha: <span class="${fichaColor} font-medium">${fichaLabel}</span> | Especialidade: ${specialty}</p>
+                    </button>
+                `;
+            }
+
+            function addSearchResultListeners() {
+                document.querySelectorAll('.condition-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const ficha = e.currentTarget.dataset.ficha;
+                        const specialty = e.currentTarget.dataset.specialty;
+                        const condition = e.currentTarget.dataset.condition;
+                        const isCustom = e.currentTarget.dataset.custom === 'true';
+                        
+                        if(!isCustom && currentFicha !== ficha) {
+                            switchFicha(ficha, false);
+                        }
+                        
+                        renderConditionDetails(specialty, condition, isCustom);
+                    });
+                });
+            }
+
+            function switchFicha(newFicha, resetContent = true) {
+                currentFicha = newFicha;
+                renderSpecialties(newFicha);
+                 if(resetContent) {
+                     currentSpecialty = null;
+                     currentCondition = null;
+                     localStorage.removeItem('lastView');
+                     contentDisplay.innerHTML = `<div class="text-center text-gray-400 p-8 flex flex-col items-center justify-center h-full">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-16 w-16 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                            </svg>
+                            <p class="text-xl mt-4 text-gray-300">Selecione uma especialidade para começar</p>
+                            <p class="text-gray-500">Ou use a busca para encontrar uma condição.</p>
+                         </div>`;
+                     searchBar.value = '';
+                 }
+                
+                pageTitle.textContent = newFicha === 'verde' ? 'Guia Ficha Verde' : 'Guia Ficha Amarela/Vermelha';
+                
+                if (newFicha === 'verde') {
+                    fichaVerdeBtn.classList.add('active-ficha');
+                    fichaVermelhaBtn.classList.remove('active-ficha');
+                } else {
+                    fichaVermelhaBtn.classList.add('active-ficha');
+                    fichaVerdeBtn.classList.remove('active-ficha');
+                }
+            }
+            
+            function toggleSidebar() {
+                isSidebarOpen = !isSidebarOpen;
+                if (isSidebarOpen) {
+                    sidebar.classList.remove('-translate-x-full');
+                } else {
+                    sidebar.classList.add('-translate-x-full');
+                }
+            }
+            
+            function loadLastView() {
+                const lastView = JSON.parse(localStorage.getItem('lastView'));
+                if (lastView) {
+                    if(lastView.ficha !== currentFicha) {
+                        switchFicha(lastView.ficha, false);
+                    }
+                    renderConditionDetails(lastView.specialtyKey, lastView.conditionKey, lastView.isCustom);
+                } else {
+                    // Show default welcome message
+                    switchFicha(currentFicha);
+                }
+            }
+
+            function setupCustomModules() {
+                addModuleBtn.addEventListener('click', () => {
+                    document.getElementById('module-form').reset();
+                    addModuleModal.classList.remove('hidden');
+                });
+                closeModuleModalBtn.addEventListener('click', () => addModuleModal.classList.add('hidden'));
+                
+                saveModuleBtn.addEventListener('click', () => {
+                    const specialty = document.getElementById('module-specialty').value.trim();
+                    const condition = document.getElementById('module-condition').value.trim();
+                    const content = document.getElementById('module-content').value.trim();
+
+                    if (!specialty || !condition || !content) {
+                        alert('Por favor, preencha todos os campos.');
+                        return;
+                    }
+
+                    let customModules = JSON.parse(localStorage.getItem('customModules')) || {};
+                    if (!customModules[specialty]) {
+                        customModules[specialty] = {};
+                    }
+                    customModules[specialty][condition] = { content: content.replace(/\n/g, '<br>') }; // Simple conversion
+                    localStorage.setItem('customModules', JSON.stringify(customModules));
+                    
+                    addModuleModal.classList.add('hidden');
+                    renderSpecialties(currentFicha);
+                    renderConditionDetails(specialty, condition, true);
+                });
+            }
+
+            // --- Event Listeners ---
+            fichaVerdeBtn.addEventListener('click', () => switchFicha('verde'));
+            fichaVermelhaBtn.addEventListener('click', () => switchFicha('vermelha'));
+            menuToggle.addEventListener('click', toggleSidebar);
+            searchBar.addEventListener('input', (e) => filterAndRenderSearch(e.target.value));
+            geminiModalClose.addEventListener('click', hideGeminiModal);
+            
+            // Initial Load
+            loadLastView();
+            setupCustomModules();
+        }
+
+    </script>
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-        }
-        .sidebar {
-            transition: transform 0.3s ease-in-out;
-        }
-        .main-content {
-            transition: margin-left 0.3s ease-in-out;
-        }
+        body { font-family: 'Inter', sans-serif; }
+        .sidebar { transition: transform 0.3s ease-in-out; }
+        .main-content { transition: margin-left 0.3s ease-in-out; }
         .ficha-verde-bg { background-color: #16a34a; }
         .ficha-vermelha-bg { background-color: #dc2626; }
         .ficha-verde-text { color: #4ade80; }
         .ficha-vermelha-text { color: #f87171; }
-        .ficha-verde-border { border-color: #16a34a; }
-        .ficha-vermelha-border { border-color: #dc2626; }
-        
         .active-ficha {
             transform: scale(1.05);
-            box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+            box-shadow: 0 0 20px rgba(96, 165, 250, 0.3);
+            border: 1px solid rgba(96, 165, 250, 0.5);
         }
-        .content-card table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 1.5rem;
-            margin-bottom: 1.5rem;
-        }
-        .content-card th, .content-card td {
-            border: 1px solid #374151; /* gray-700 */
-            padding: 0.75rem 1rem;
-            text-align: left;
-        }
-        .content-card th {
-            background-color: #1f2937; /* gray-800 */
-            font-weight: 600;
-        }
-        .content-card ul {
-            list-style-type: disc;
-            padding-left: 20px;
-        }
-        .content-card li {
-            margin-bottom: 0.5rem;
-        }
-        .prescription-box {
-            border-left: 4px solid;
-            padding: 1rem;
-            background-color: #1f2937; /* gray-800 */
-            margin-top: 1.5rem;
-            border-radius: 0.5rem;
-        }
-        .prescription-box h4 {
-            font-size: 1.125rem;
-            font-weight: 700;
-            margin-bottom: 0.75rem;
-        }
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #1f2937;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #4b5563;
-            border-radius: 4px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #6b7280;
-        }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1f2937; }
+        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
         .gemini-btn {
-            background-color: #374151;
-            color: #d1d5db;
-            padding: 0.75rem 1.5rem;
-            border-radius: 0.5rem;
-            font-weight: 600;
-            transition: background-color 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            background-color: #374151; color: #d1d5db; padding: 0.6rem 1.2rem;
+            border-radius: 0.5rem; font-weight: 500; transition: all 0.2s;
+            display: flex; align-items: center; justify-content: center;
+            border: 1px solid #4b5563;
         }
-        .gemini-btn:hover {
-            background-color: #4b5563;
-        }
-         .tts-btn svg {
-            transition: transform 0.2s;
-        }
-        .tts-btn.loading svg {
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        #gemini-result h3 {
-            font-size: 1.25rem;
-            font-weight: 600;
-            color: #d1d5db; /* gray-300 */
-            margin-top: 1.5rem;
-            margin-bottom: 0.75rem;
-            border-bottom: 1px solid #4b5563;
-            padding-bottom: 0.5rem;
-        }
-        #gemini-result ul {
-            list-style-type: disc;
-            padding-left: 1.5rem;
-            margin-top: 1rem;
-            margin-bottom: 1rem;
-        }
-        #gemini-result li {
-            margin-bottom: 0.5rem;
-        }
+        .gemini-btn:hover { background-color: #4b5563; }
     </style>
 </head>
-<body class="bg-gray-900 text-gray-300">
+<body class="bg-zinc-900 text-gray-300">
 
     <!-- Sidebar / Navigation -->
-    <aside id="sidebar" class="sidebar bg-gray-800 w-64 fixed top-0 left-0 h-full shadow-lg p-4 z-20 transform -translate-x-full md:translate-x-0 border-r border-gray-700">
-        <div class="flex items-center mb-6">
-             <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 text-emerald-400 mr-2" viewBox="0 0 24 24" fill="currentColor"><path d="M18.5,2H5.5A3.5,3.5,0,0,0,2,5.5v13A3.5,3.5,0,0,0,5.5,22h13A3.5,3.5,0,0,0,22,18.5V5.5A3.5,3.5,0,0,0,18.5,2ZM18,7.5a.5.5,0,0,1-.5.5h-11a.5.5,0,0,1,0-1h11A.5.5,0,0,1,18,7.5Zm0,4a.5.5,0,0,1-.5.5h-11a.5.5,0,0,1,0-1h11A.5.5,0,0,1,18,11.5Zm0,4a.5.5,0,0,1-.5.5h-11a.5.5,0,0,1,0-1h11A.5.5,0,0,1,18,15.5Z"/></svg>
-            <h1 class="text-2xl font-bold text-white">Prescrevendo</h1>
+    <aside id="sidebar" class="sidebar bg-zinc-800 w-72 fixed top-0 left-0 h-full shadow-lg p-4 z-20 transform -translate-x-full md:translate-x-0 border-r border-zinc-700 flex flex-col">
+        <div class="flex items-center mb-6 pl-2">
+             <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-emerald-400 mr-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"></path><path d="M12 8v4l2 1"></path><path d="m15.5 17.5-3-1.5-3 1.5"></path></svg>
+            <h1 class="text-2xl font-bold text-white">HelpClin</h1>
         </div>
-        <input type="text" id="search-bar" placeholder="Pesquisar condição..." class="w-full p-2 bg-gray-700 border border-gray-600 rounded-lg mb-4 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500">
-        <nav id="specialties-nav" class="overflow-y-auto h-[calc(100%-8rem)]">
+        <input type="text" id="search-bar" placeholder="Pesquisar..." class="w-full p-2 bg-zinc-700 border border-zinc-600 rounded-lg mb-4 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+        <nav id="specialties-nav" class="overflow-y-auto flex-grow">
             <!-- Specialties will be dynamically inserted here -->
         </nav>
+        <div class="mt-4">
+            <button id="add-module-btn" class="w-full flex items-center justify-center p-3 rounded-lg text-gray-300 bg-zinc-700 hover:bg-emerald-600 hover:text-white transition-colors duration-200">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+                Adicionar Módulo
+            </button>
+        </div>
     </aside>
 
     <!-- Main Content -->
-    <main id="main-content" class="main-content md:ml-64 p-4 md:p-8">
+    <main id="main-content" class="main-content md:ml-72 p-4 md:p-8">
         <!-- Header -->
         <header class="flex justify-between items-center mb-8">
-             <button id="menu-toggle" class="md:hidden p-2 rounded-md bg-gray-700 text-gray-300">
+             <button id="menu-toggle" class="md:hidden p-2 rounded-md bg-zinc-700 text-gray-300">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
             </button>
-            <h2 id="page-title" class="text-3xl font-bold text-center flex-grow text-white">Guia de Prescrições</h2>
-            <div class="hidden md:block w-8"></div>
+            <div class="flex-grow flex justify-center">
+                 <div class="flex justify-center gap-4 rounded-xl p-1 bg-zinc-800 border border-zinc-700">
+                    <button id="ficha-verde-btn" class="ficha-selector text-white font-semibold py-2 px-6 rounded-lg transition-all duration-300" data-ficha="verde">
+                        Ficha Verde
+                    </button>
+                    <button id="ficha-vermelha-btn" class="ficha-selector text-white font-semibold py-2 px-6 rounded-lg transition-all duration-300" data-ficha="vermelha">
+                        Ficha Amarela/Vermelha
+                    </button>
+                </div>
+            </div>
+            <div class="w-8"></div>
         </header>
 
-        <!-- Ficha Selector -->
-        <div class="flex justify-center gap-4 md:gap-8 mb-8">
-            <button id="ficha-verde-btn" class="ficha-selector ficha-verde-bg text-white font-bold py-3 px-6 rounded-xl shadow-md w-full md:w-1/3 transition-all duration-300 active-ficha" data-ficha="verde">
-                Ficha Verde
-            </button>
-            <button id="ficha-vermelha-btn" class="ficha-selector ficha-vermelha-bg text-white font-bold py-3 px-6 rounded-xl shadow-md w-full md:w-1/3 transition-all duration-300" data-ficha="vermelha">
-                Ficha Amarela/Vermelha
-            </button>
-        </div>
-
         <!-- Content Display Area -->
-        <div id="content-display" class="bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-700 min-h-[50vh]">
-            <!-- Content will be dynamically inserted here -->
-             <div class="text-center text-gray-400 p-8">
-                <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-12 w-12 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                </svg>
-                <p class="text-lg mt-4">Selecione uma ficha e uma especialidade para começar.</p>
-                <p>Use a barra de pesquisa para encontrar uma condição específica.</p>
-            </div>
+        <div id="content-display" class="bg-zinc-800 p-6 md:p-8 rounded-xl shadow-lg border border-zinc-700 min-h-[75vh]">
+             <!-- Initial state / selected content appears here -->
         </div>
     </main>
     
     <!-- Gemini Modal -->
     <div id="gemini-modal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden">
-        <div class="bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col border border-gray-700">
-            <div class="flex justify-between items-center p-4 border-b border-gray-700">
-                <h3 id="gemini-modal-title" class="text-xl font-bold text-white flex items-center">
-                    <span class="mr-2">✨</span> Assistente Gemini
-                </h3>
+        <div class="bg-zinc-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col border border-zinc-700">
+            <div class="flex justify-between items-center p-4 border-b border-zinc-700">
+                <h3 id="gemini-modal-title" class="text-xl font-bold text-white flex items-center"></h3>
                 <button id="gemini-modal-close" class="text-gray-400 hover:text-white text-3xl leading-none">&times;</button>
             </div>
             <div id="gemini-modal-content" class="p-6 overflow-y-auto">
-                <!-- Loading spinner -->
                 <div id="gemini-loading" class="text-center hidden">
                     <svg class="animate-spin h-8 w-8 text-emerald-400 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    <p class="mt-2 text-gray-400">Gerando resposta... Por favor, aguarde.</p>
+                    <p class="mt-2 text-gray-400">Gerando resposta...</p>
                 </div>
-                <!-- Result container -->
                 <div id="gemini-result" class="prose prose-invert max-w-none text-gray-300"></div>
             </div>
         </div>
     </div>
-    
-    <script src="database.js"></script>
-    <script>
-        // --- Service Worker Registration for PWA ---
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(registration => console.log('ServiceWorker registration successful with scope: ', registration.scope))
-                    .catch(error => console.log('ServiceWorker registration failed: ', error));
-            });
-        }
 
-        // --- DOM Elements ---
-        const sidebar = document.getElementById('sidebar');
-        const mainContent = document.getElementById('main-content');
-        const menuToggle = document.getElementById('menu-toggle');
-        const searchBar = document.getElementById('search-bar');
-        const specialtiesNav = document.getElementById('specialties-nav');
-        const contentDisplay = document.getElementById('content-display');
-        const fichaVerdeBtn = document.getElementById('ficha-verde-btn');
-        const fichaVermelhaBtn = document.getElementById('ficha-vermelha-btn');
-        const pageTitle = document.getElementById('page-title');
-        const geminiModal = document.getElementById('gemini-modal');
-        const geminiModalClose = document.getElementById('gemini-modal-close');
-        const geminiModalTitle = document.getElementById('gemini-modal-title');
-        const geminiLoading = document.getElementById('gemini-loading');
-        const geminiResult = document.getElementById('gemini-result');
-        let currentAudio = null;
+    <!-- Add Module Modal -->
+     <div id="add-module-modal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-zinc-800 rounded-xl shadow-2xl w-full max-w-xl border border-zinc-700">
+            <div class="flex justify-between items-center p-4 border-b border-zinc-700">
+                <h3 class="text-xl font-bold text-white">Adicionar Novo Módulo</h3>
+                <button id="close-module-modal" class="text-gray-400 hover:text-white text-3xl">&times;</button>
+            </div>
+            <div class="p-6">
+                <form id="module-form" class="space-y-4">
+                    <input type="text" id="module-specialty" placeholder="Nome da Especialidade (ex: Cardiologia)" class="w-full p-2 bg-zinc-700 border border-zinc-600 rounded-lg text-white" required>
+                    <input type="text" id="module-condition" placeholder="Nome da Condição (ex: Anafilaxia)" class="w-full p-2 bg-zinc-700 border border-zinc-600 rounded-lg text-white" required>
+                    <textarea id="module-content" placeholder="Conteúdo do módulo (use quebras de linha para parágrafos)" rows="8" class="w-full p-2 bg-zinc-700 border border-zinc-600 rounded-lg text-white"></textarea>
+                    <button type="button" id="save-module-btn" class="w-full gemini-btn bg-emerald-600 text-white hover:bg-emerald-700">Salvar Módulo</button>
+                </form>
+            </div>
+        </div>
+    </div>
 
-
-        // --- State ---
-        let currentFicha = 'verde';
-        let currentSpecialty = null;
-        let currentCondition = null;
-        let isSidebarOpen = false;
-        
-        // --- Gemini API & Caching Functions ---
-        const textModel = 'gemini-2.5-flash-preview-05-20';
-        const ttsModel = 'gemini-2.5-flash-preview-tts';
-
-        function showGeminiModal(title) {
-            geminiModalTitle.innerHTML = `<span class="mr-2">✨</span> ${title}`;
-            geminiResult.innerHTML = '';
-            geminiLoading.classList.remove('hidden');
-            geminiModal.classList.remove('hidden');
-        }
-
-        function hideGeminiModal() {
-            geminiModal.classList.add('hidden');
-        }
-
-        function getCacheKey(type) {
-             if (!currentFicha || !currentSpecialty || !currentCondition) return null;
-             return `geminiCache-${currentFicha}-${currentSpecialty}-${currentCondition}-${type}`;
-        }
-        const getFromCache = (key) => localStorage.getItem(key);
-        const saveToCache = (key, data) => localStorage.setItem(key, data);
-
-        function markdownToHtml(text) {
-            let html = text
-                .replace(/^### (.*$)/gim, '<h3 class="text-xl font-bold mt-4 mb-2 text-gray-100">$1</h3>')
-                .replace(/^## (.*$)/gim, '<h2 class="text-2xl font-bold mt-5 mb-3 text-white">$1</h2>')
-                .replace(/^# (.*$)/gim, '<h1 class="text-3xl font-bold mt-6 mb-4 text-white">$1</h1>')
-                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                .replace(/^- (.*$)/gim, '<li>$1</li>')
-                .replace(/^\* (.*$)/gim, '<li>$1</li>');
-
-            html = html.replace(/(<li>(.|\n)*?<\/li>)/g, (match) => {
-                 return match.trim().startsWith('<li>') ? `<ul class="list-disc pl-6 space-y-2 my-4">${match}</ul>` : match;
-            });
-            
-             html = html.split('\n').map(line => {
-                if (!line.trim()) return '';
-                if (line.trim().startsWith('<h') || line.trim().startsWith('<ul')) return line;
-                return `<p class="mb-3">${line.replace(/<\/li>(\n)?<li/g, '</li><li')} </p>`;
-             }).join('');
-
-            return html;
-        }
-        
-        async function callProxyAPI(bodyPayload, retries = 3, delay = 1000) {
-            const proxyUrl = '/api/gemini-proxy';
-            
-            try {
-                const response = await fetch(proxyUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(bodyPayload)
-                });
-
-                if (!response.ok) {
-                    if (response.status === 429 && retries > 0) {
-                         await new Promise(res => setTimeout(res, delay));
-                         return callProxyAPI(bodyPayload, retries - 1, delay * 2);
-                    }
-                    const errorData = await response.json().catch(() => ({ error: `Erro ${response.status}: ${response.statusText}`, details: "A função do servidor não foi encontrada ou retornou um erro inesperado." }));
-                    throw new Error(errorData.error || `Proxy Error: ${response.statusText}`);
-                }
-
-                return await response.json();
-
-            } catch (error) {
-                 console.error("Falha na chamada do Proxy:", error);
-                 throw error;
-            }
-        }
-
-        async function callGeminiAPI(prompt, systemInstruction, useGrounding = false, cacheKey) {
-            const body = {
-                prompt,
-                systemInstruction,
-                useGrounding,
-                model: textModel
-            };
-            try {
-                const result = await callProxyAPI(body);
-                const candidate = result.candidates?.[0];
-
-                if (candidate?.content?.parts?.[0]?.text) {
-                    let sourcesHTML = '';
-                    const groundingMetadata = candidate.groundingMetadata;
-                    if (useGrounding && groundingMetadata?.groundingAttributions) {
-                         const sources = groundingMetadata.groundingAttributions
-                            .map(attr => attr.web)
-                            .filter(web => web?.uri && web?.title);
-
-                        if (sources.length > 0) {
-                            sourcesHTML = '<h4 class="text-lg font-semibold mt-6 mb-2 text-gray-300">Fontes:</h4><ul class="list-disc pl-5 text-sm space-y-1">';
-                            sources.forEach(source => {
-                                sourcesHTML += `<li><a href="${source.uri}" target="_blank" rel="noopener noreferrer" class="text-emerald-400 hover:underline">${source.title}</a></li>`;
-                            });
-                            sourcesHTML += '</ul>';
-                        }
-                    }
-                    
-                    let rawText = candidate.content.parts[0].text;
-                    let htmlContent = markdownToHtml(rawText);
-                    let finalHtml = `${htmlContent}${sourcesHTML}`;
-                    
-                    geminiResult.innerHTML = finalHtml;
-                    
-                    if (cacheKey) {
-                        saveToCache(cacheKey, finalHtml);
-                    }
-                } else {
-                    const rejectionReason = result.candidates?.[0]?.finishReason;
-                    if (rejectionReason === 'SAFETY') {
-                         geminiResult.innerHTML = `<p class="text-yellow-400">A resposta foi bloqueada por políticas de segurança. Tente reformular sua pergunta.</p>`;
-                    } else {
-                         throw new Error("Resposta inválida da API do Gemini.");
-                    }
-                }
-            } catch (error) {
-                geminiResult.innerHTML = `<p class="text-red-400"><b>Ocorreu um erro:</b> ${error.message}<br><br>Por favor, verifique os logs no Netlify (conforme o guia de depuração) para mais detalhes.</p>`;
-            } finally {
-                geminiLoading.classList.add('hidden');
-            }
-        }
-
-
-        // --- TTS Functions ---
-        function base64ToArrayBuffer(base64) {
-            const binaryString = window.atob(base64);
-            const len = binaryString.length;
-            const bytes = new Uint8Array(len);
-            for (let i = 0; i < len; i++) {
-                bytes[i] = binaryString.charCodeAt(i);
-            }
-            return bytes.buffer;
-        }
-
-        function pcmToWav(pcmData, sampleRate) {
-            const numChannels = 1;
-            const bitsPerSample = 16;
-            const blockAlign = (numChannels * bitsPerSample) / 8;
-            const byteRate = sampleRate * blockAlign;
-            const dataSize = pcmData.length * pcmData.BYTES_PER_ELEMENT;
-            const buffer = new ArrayBuffer(44 + dataSize);
-            const view = new DataView(buffer);
-            
-            function writeString(view, offset, string) {
-                for (let i = 0; i < string.length; i++) {
-                    view.setUint8(offset + i, string.charCodeAt(i));
-                }
-            }
-            
-            writeString(view, 0, 'RIFF');
-            view.setUint32(4, 36 + dataSize, true);
-            writeString(view, 8, 'WAVE');
-            writeString(view, 12, 'fmt ');
-            view.setUint32(16, 16, true);
-            view.setUint16(20, 1, true);
-            view.setUint16(22, numChannels, true);
-            view.setUint32(24, sampleRate, true);
-            view.setUint32(28, byteRate, true);
-            view.setUint16(32, blockAlign, true);
-            view.setUint16(34, bitsPerSample, true);
-            writeString(view, 36, 'data');
-            view.setUint32(40, dataSize, true);
-
-            const pcmAsInt16 = new Int16Array(pcmData.buffer);
-            for (let i = 0; i < pcmAsInt16.length; i++) {
-                view.setInt16(44 + i * 2, pcmAsInt16[i], true);
-            }
-            return new Blob([view], { type: 'audio/wav' });
-        }
-        
-        async function callGeminiTTS(text, buttonElement) {
-            if (currentAudio && !currentAudio.paused) {
-                currentAudio.pause();
-                currentAudio = null;
-                 buttonElement.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" /></svg>`;
-                return;
-            }
-
-            buttonElement.classList.add('loading');
-            const originalIcon = buttonElement.innerHTML;
-
-            const body = {
-                prompt: `Leia o seguinte texto de prescrição de forma clara e pausada: ${text}`,
-                model: ttsModel
-            };
-
-            try {
-                const result = await callProxyAPI(body);
-                const audioData = result?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-                const mimeType = result?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.mimeType;
-
-                if (audioData && mimeType && mimeType.startsWith("audio/")) {
-                    const sampleRateMatch = mimeType.match(/rate=(\d+)/);
-                    const sampleRate = sampleRateMatch ? parseInt(sampleRateMatch[1], 10) : 24000;
-                    const pcmData = base64ToArrayBuffer(audioData);
-                    const pcm16 = new Int16Array(pcmData);
-                    const wavBlob = pcmToWav(pcm16, sampleRate);
-                    const audioUrl = URL.createObjectURL(wavBlob);
-                    
-                    currentAudio = new Audio(audioUrl);
-                    buttonElement.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 10h6v4H9z" /></svg>`; // Stop icon
-                    
-                    currentAudio.play();
-                    currentAudio.onended = () => {
-                         buttonElement.innerHTML = originalIcon;
-                         currentAudio = null;
-                    };
-                } else {
-                     throw new Error("Dados de áudio não encontrados na resposta.");
-                }
-
-            } catch (error) {
-                console.error("Falha na chamada TTS do Gemini:", error);
-                 alert(`Erro ao gerar o áudio: ${error.message}`);
-            } finally {
-                buttonElement.classList.remove('loading');
-            }
-        }
-
-        // --- Core App Functions ---
-
-        function createPrescriptionHTML(prescricao) {
-            const borderColorClass = prescricao.type === 'verde' ? 'ficha-verde-border' : 'ficha-vermelha-border';
-            const textColorClass = prescricao.type === 'verde' ? 'ficha-verde-text' : 'ficha-vermelha-text';
-            
-            const prescriptionText = prescricao.items.map(item => item.replace(/<[^>]*>?/gm, ' ')).join('\n');
-            let itemsHTML = prescricao.items.map(item => `<li class="mb-2">${item}</li>`).join('');
-
-            return `
-                <div class="prescription-box ${borderColorClass} mb-4">
-                     <div class="flex justify-between items-start">
-                        <h4 class="${textColorClass}">${prescricao.title}</h4>
-                        <button class="tts-btn p-2 rounded-full hover:bg-gray-700" title="Ler Prescrição" data-text="${encodeURIComponent(prescriptionText)}">
-                           <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" /></svg>
-                        </button>
-                    </div>
-                    <ul class="text-gray-300 space-y-1 mt-2">${itemsHTML}</ul>
-                </div>
-            `;
-        }
-
-        function renderConditionDetails(specialtyKey, conditionKey) {
-            currentSpecialty = specialtyKey;
-            currentCondition = conditionKey;
-            
-            const condition = prescrevendoData[currentFicha][specialtyKey][conditionKey];
-            const allPrescriptions = condition.prescricoes || [];
-            
-            let geminiFeaturesHTML = `
-                <div class="mt-8 pt-6 border-t border-gray-700">
-                    <h3 class="text-2xl font-bold mb-4 text-emerald-400">✨ Funções com Gemini</h3>
-                    <div class="flex flex-col md:flex-row gap-4">
-                        <button id="gemini-summarize-btn" class="gemini-btn w-full">Resumir Condição</button>
-                        ${allPrescriptions.length > 0 ? `<button id="gemini-patient-instructions-btn" class="gemini-btn w-full">Gerar Instruções para Paciente</button>` : ''}
-                    </div>
-                </div>`;
-
-            let html = `
-                <button id="back-btn" class="mb-4 text-emerald-400 hover:underline">&larr; Voltar para ${specialtyKey}</button>
-                <h2 class="text-4xl font-bold mb-2 text-white">${conditionKey}</h2>
-                <p class="text-lg text-gray-400 mb-6">Especialidade: ${specialtyKey}</p>
-                <div class="content-card">
-                    ${condition.content}
-                    ${allPrescriptions.length > 0 ? allPrescriptions.map(createPrescriptionHTML).join('') : ''}
-                </div>
-                ${geminiFeaturesHTML}
-            `;
-            contentDisplay.innerHTML = html;
-            
-            const fetchAndDisplaySummary = async (forceRefresh = false) => {
-                const cacheKey = getCacheKey('summary');
-                if (!forceRefresh) {
-                    const cachedData = getFromCache(cacheKey);
-                    if (cachedData) {
-                        showGeminiModal(`Resumo sobre ${conditionKey} (Salvo)`);
-                        geminiResult.innerHTML = cachedData;
-                        const refreshButton = document.createElement('button');
-                        refreshButton.textContent = 'Gerar Novamente';
-                        refreshButton.className = 'gemini-btn w-full mt-6';
-                        refreshButton.onclick = () => fetchAndDisplaySummary(true);
-                        geminiResult.appendChild(refreshButton);
-                        geminiLoading.classList.add('hidden');
-                        return;
-                    }
-                }
-                showGeminiModal(`Resumo sobre ${conditionKey}`);
-                const systemPrompt = "Você é um assistente médico. Formate sua resposta usando Markdown. Forneça um resumo conciso e informativo para profissionais de saúde, baseado nas informações mais recentes da web.";
-                const userPrompt = `Forneça um resumo sobre a condição médica "${conditionKey}", cobrindo os seguintes tópicos com seus respectivos títulos: ### Etiologia, ### Apresentação Clínica Principal, ### Diagnóstico, e ### Opções de Tratamento. Use fontes confiáveis.`;
-                await callGeminiAPI(userPrompt, systemPrompt, true, cacheKey);
-            };
-
-            const fetchAndDisplayPatientInstructions = async (forceRefresh = false) => {
-                const cacheKey = getCacheKey('patientInstructions');
-                 if (!forceRefresh) {
-                    const cachedData = getFromCache(cacheKey);
-                    if (cachedData) {
-                        showGeminiModal(`Instruções para Paciente: ${conditionKey} (Salvo)`);
-                        geminiResult.innerHTML = cachedData;
-                        const refreshButton = document.createElement('button');
-                        refreshButton.textContent = 'Gerar Novamente';
-                        refreshButton.className = 'gemini-btn w-full mt-6';
-                        refreshButton.onclick = () => fetchAndDisplayPatientInstructions(true);
-                        geminiResult.appendChild(refreshButton);
-                        geminiLoading.classList.add('hidden');
-                        return;
-                    }
-                }
-                showGeminiModal(`Instruções para Paciente: ${conditionKey}`);
-                const prescriptionText = allPrescriptions.map(p => `- Prescrição: ${p.title}\n${p.items.join('\n')}`).join('\n\n').replace(/<[^>]*>?/gm, ' ');
-                const systemPrompt = "Você é um assistente de comunicação em saúde. Sua tarefa é traduzir prescrições médicas complexas em instruções claras, simples e amigáveis para pacientes leigos. Use Markdown para formatação. Evite jargão a todo custo e foque na ação que o paciente precisa tomar.";
-                const userPrompt = `Com base nas seguintes prescrições para "${conditionKey}", gere um texto único com instruções para o paciente. Organize por medicamento usando títulos (### Nome do Medicamento). Explique para que serve, como e quando tomar, e por quanto tempo. Finalize com um título '### Avisos Importantes'.\n\n${prescriptionText}`;
-                await callGeminiAPI(userPrompt, systemPrompt, false, cacheKey);
-            };
-
-            document.getElementById('gemini-summarize-btn').addEventListener('click', () => fetchAndDisplaySummary(false));
-            if (allPrescriptions.length > 0) {
-                 document.getElementById('gemini-patient-instructions-btn').addEventListener('click', () => fetchAndDisplayPatientInstructions(false));
-            }
-            
-            document.getElementById('back-btn').addEventListener('click', () => renderConditions(specialtyKey));
-            window.scrollTo(0, 0);
-        }
-
-        function renderConditions(specialtyKey) {
-            currentSpecialty = specialtyKey;
-            currentCondition = null;
-            const conditions = prescrevendoData[currentFicha][specialtyKey];
-            let html = `
-                <h2 class="text-3xl font-bold mb-6 text-white">${specialtyKey}</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            `;
-            for (const conditionKey in conditions) {
-                html += `
-                    <button class="condition-btn text-left p-4 bg-gray-700 rounded-lg hover:bg-gray-600 hover:shadow-xl transition-all duration-200" data-specialty="${specialtyKey}" data-condition="${conditionKey}">
-                        <h3 class="font-semibold text-lg text-gray-200">${conditionKey}</h3>
-                    </button>
-                `;
-            }
-            html += `</div>`;
-            contentDisplay.innerHTML = html;
-
-            document.querySelectorAll('.condition-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const specialty = e.currentTarget.dataset.specialty;
-                    const condition = e.currentTarget.dataset.condition;
-                    renderConditionDetails(specialty, condition);
-                });
-            });
-        }
-        
-        function renderSpecialties(ficha) {
-            const specialties = prescrevendoData[ficha];
-            specialtiesNav.innerHTML = '';
-            const ul = document.createElement('ul');
-            ul.className = 'space-y-1';
-
-            for (const key in specialties) {
-                const li = document.createElement('li');
-                const a = document.createElement('a');
-                a.href = '#';
-                a.textContent = key;
-                a.className = 'block p-3 rounded-lg text-gray-300 hover:bg-gray-700 hover:text-white transition-colors duration-200';
-                a.dataset.specialty = key;
-                a.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    renderConditions(key);
-                    if (isSidebarOpen) toggleSidebar();
-                });
-                li.appendChild(a);
-                ul.appendChild(li);
-            }
-            specialtiesNav.appendChild(ul);
-        }
-        
-        function filterAndRenderSearch(query) {
-            if (!query) {
-                if(currentSpecialty) {
-                    renderConditions(currentSpecialty);
-                } else {
-                     contentDisplay.innerHTML = `<div class="text-center text-gray-400 p-8">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-12 w-12 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                        </svg>
-                        <p class="text-lg mt-4">Selecione uma ficha e uma especialidade para começar.</p>
-                     </div>`;
-                }
-                return;
-            }
-
-            let html = `
-                <h2 class="text-3xl font-bold mb-6 text-white">Resultados da busca por "${query}"</h2>
-                <div class="space-y-4">
-            `;
-            let found = false;
-
-            for (const ficha in prescrevendoData) {
-                 for (const specialtyKey in prescrevendoData[ficha]) {
-                    for (const conditionKey in prescrevendoData[ficha][specialtyKey]) {
-                        if (conditionKey.toLowerCase().includes(query.toLowerCase())) {
-                            found = true;
-                             html += `
-                                <button class="condition-btn text-left p-4 bg-gray-700 rounded-lg hover:bg-gray-600 transition-all duration-200 w-full" data-ficha="${ficha}" data-specialty="${specialtyKey}" data-condition="${conditionKey}">
-                                    <h3 class="font-semibold text-lg text-gray-200">${conditionKey}</h3>
-                                    <p class="text-sm text-gray-500">Ficha: <span class="${ficha === 'verde' ? 'text-green-400' : 'text-red-400'} font-medium">${ficha === 'verde' ? 'Verde' : 'Amarela/Vermelha'}</span> | Especialidade: ${specialtyKey}</p>
-                                </button>
-                            `;
-                        }
-                    }
-                }
-            }
-            
-            if (!found) {
-                html += '<p class="text-gray-500">Nenhuma condição encontrada.</p>';
-            }
-
-            html += `</div>`;
-            contentDisplay.innerHTML = html;
-
-            document.querySelectorAll('.condition-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const ficha = e.currentTarget.dataset.ficha;
-                    const specialty = e.currentTarget.dataset.specialty;
-                    const condition = e.currentTarget.dataset.condition;
-                    
-                    if(currentFicha !== ficha) {
-                        switchFicha(ficha, false);
-                    }
-                    
-                    renderConditionDetails(specialty, condition);
-                });
-            });
-        }
-
-        function switchFicha(newFicha, resetContent = true) {
-            currentFicha = newFicha;
-            renderSpecialties(newFicha);
-             if(resetContent) {
-                 currentSpecialty = null;
-                 currentCondition = null;
-                 contentDisplay.innerHTML = `<div class="text-center text-gray-400 p-8">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-12 w-12 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                        </svg>
-                        <p class="text-lg mt-4">Selecione uma ficha e uma especialidade para começar.</p>
-                     </div>`;
-                 searchBar.value = '';
-             }
-            
-            pageTitle.textContent = newFicha === 'verde' ? 'Guia Ficha Verde' : 'Guia Ficha Amarela/Vermelha';
-            
-            if (newFicha === 'verde') {
-                fichaVerdeBtn.classList.add('active-ficha');
-                fichaVermelhaBtn.classList.remove('active-ficha');
-                pageTitle.className = 'text-3xl font-bold text-center flex-grow ficha-verde-text';
-            } else {
-                fichaVermelhaBtn.classList.add('active-ficha');
-                fichaVerdeBtn.classList.remove('active-ficha');
-                pageTitle.className = 'text-3xl font-bold text-center flex-grow ficha-vermelha-text';
-            }
-        }
-        
-        function toggleSidebar() {
-            isSidebarOpen = !isSidebarOpen;
-            if (isSidebarOpen) {
-                sidebar.classList.remove('-translate-x-full');
-            } else {
-                sidebar.classList.add('-translate-x-full');
-            }
-        }
-
-
-        // --- Event Listeners ---
-        fichaVerdeBtn.addEventListener('click', () => switchFicha('verde'));
-        fichaVermelhaBtn.addEventListener('click', () => switchFicha('vermelha'));
-        menuToggle.addEventListener('click', toggleSidebar);
-        searchBar.addEventListener('input', (e) => filterAndRenderSearch(e.target.value));
-        geminiModalClose.addEventListener('click', hideGeminiModal);
-        
-        contentDisplay.addEventListener('click', function(event) {
-            const ttsButton = event.target.closest('.tts-btn');
-            if (ttsButton) {
-                const textToSpeak = decodeURIComponent(ttsButton.dataset.text);
-                callGeminiTTS(textToSpeak, ttsButton);
-            }
-        });
-
-        // Initial Load
-        switchFicha('verde');
-
-    </script>
 </body>
 </html>
 
