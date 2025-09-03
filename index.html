@@ -22,12 +22,11 @@
     <script src="database.js"></script>
 
     <!--
-      IMPORTANTE: O Netlify irá substituir o placeholder abaixo pelo valor da sua 
-      variável de ambiente FIREBASE_CONFIG durante o processo de "deploy".
-      Esta é uma forma segura de fornecer as credenciais para o site.
+      CORREÇÃO: As aspas em volta do placeholder foram removidas.
+      Agora, o Netlify injetará o JSON diretamente, criando um objeto JS válido.
     -->
     <script>
-      const firebaseConfig = "__FIREBASE_CONFIG_PLACEHOLDER__";
+      const firebaseConfig = __FIREBASE_CONFIG_PLACEHOLDER__;
     </script>
 
     <script type="module">
@@ -39,7 +38,6 @@
 
         // Esta função agora usa a variável 'firebaseConfig' que foi injetada diretamente no HTML.
         async function initializeFirebase(config) {
-            // Verifica se o placeholder foi substituído. Se não, o script de build não funcionou.
             if (typeof config === 'string' && config.includes("__FIREBASE_CONFIG_PLACEHOLDER__")) {
                  throw new Error("A configuração do Firebase não foi injetada. Verifique o script 'build.sh' e as configurações de build no Netlify.");
             }
