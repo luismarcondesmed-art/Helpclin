@@ -14,13 +14,37 @@
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
 
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide-react@0.294.0/dist/lucide-react.js"></script>
+    <!-- Lucide Icons (versão correta para HTML) -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     
     <!-- Font -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getFirestore, doc, getDoc, setDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        
+        // Configuração do Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyCvqp5HYUMnogWmwT0O1LFLOMsfqj9P83s",
+            authDomain: "med-heklp.firebaseapp.com",
+            projectId: "med-heklp",
+            storageBucket: "med-heklp.appspot.com",
+            messagingSenderId: "675054342845",
+            appId: "1:675054342845:web:91e53e21060a087123ddd4",
+            measurementId: "G-BLWYTWFFTZ"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        window.db = getFirestore(app);
+        window.doc = doc;
+        window.getDoc = getDoc;
+        window.setDoc = setDoc;
+
+    </script>
 
     <style>
         body {
@@ -55,66 +79,25 @@
             max-height: 90vh;
             overflow-y: auto;
         }
-        .prose-styles h1, .prose-styles h2, .prose-styles h3 {
-            color: #f3f4f6;
-        }
-        .prose-styles p, .prose-styles li, .prose-styles td, .prose-styles th {
-            color: #d1d5db;
-        }
-        .prose-styles strong {
-            color: #93c5fd;
-        }
-        .prose-styles a {
-            color: #60a5fa;
-        }
-        .prose-styles pre {
-            background-color: #111827;
-            padding: 1rem;
-            border-radius: 0.5rem;
-            color: #d1d5db;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-        }
-        .loader-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 80vh;
-            flex-direction: column;
-            gap: 1rem;
-        }
-        .loader {
-            border: 4px solid #4b5563;
-            border-top: 4px solid #3b82f6;
-            border-radius: 50%;
-            width: 48px;
-            height: 48px;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        #install-prompt {
-            display: none;
-            position: fixed;
-            bottom: 1rem;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 100;
-        }
+        .prose-styles h1, .prose-styles h2, .prose-styles h3 { color: #f3f4f6; }
+        .prose-styles p, .prose-styles li, .prose-styles td, .prose-styles th { color: #d1d5db; }
+        .prose-styles strong { color: #93c5fd; }
+        .prose-styles a { color: #60a5fa; }
+        .prose-styles pre { background-color: #111827; padding: 1rem; border-radius: 0.5rem; color: #d1d5db; white-space: pre-wrap; word-wrap: break-word; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3b82f6; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        #install-prompt { display: none; position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%); z-index: 100; }
     </style>
 </head>
 <body class="bg-gray-900 text-gray-200">
 
     <div id="app" class="max-w-4xl mx-auto p-4 md:p-6">
-        <div class="loader-container">
-            <div class="loader"></div>
-            <p>Carregando guia do HelpClínica...</p>
-        </div>
+        <!-- O conteúdo será injetado pelo JavaScript -->
     </div>
 
-    <div id="modal-container"></div>
+    <div id="modal-container">
+        <!-- O modal será injetado aqui -->
+    </div>
 
     <div id="install-prompt" class="bg-blue-600 text-white py-2 px-4 rounded-lg shadow-lg flex items-center gap-4">
         <p>Instale o app para acesso offline!</p>
@@ -122,114 +105,77 @@
         <button id="close-install-prompt" class="text-white">&times;</button>
     </div>
 
-    <!-- Firebase SDKs -->
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-        import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-analytics.js";
-
-        // Your web app's Firebase configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyCvqp5HYUMnogWmwT0O1LFLOMsfqj9P83s",
-            authDomain: "med-heklp.firebaseapp.com",
-            projectId: "med-heklp",
-            storageBucket: "med-heklp.appspot.com",
-            messagingSenderId: "675054342845",
-            appId: "1:675054342845:web:91e53e21060a087123ddd4",
-            measurementId: "G-BLWYTWFFTZ"
-        };
-
-        // Initialize Firebase
-        const firebaseApp = initializeApp(firebaseConfig);
-        const firestoreDb = getFirestore(firebaseApp);
-        const analytics = getAnalytics(firebaseApp);
-
-        // --- APLICAÇÃO ---
-        const appContainer = document.getElementById('app');
+        let dbData;
+        const app = document.getElementById('app');
         const modalContainer = document.getElementById('modal-container');
-        let appData; // A base de dados virá do Firebase
 
-        const loadAppData = async () => {
-            const docRef = doc(firestoreDb, "appData", "content");
-            const docSnap = await getDoc(docRef);
+        const loadDb = async () => {
+            const docRef = window.doc(window.db, "appData", "content");
+            const docSnap = await window.getDoc(docRef);
 
             if (docSnap.exists()) {
-                console.log("Dados carregados do Firebase.");
-                appData = docSnap.data();
+                console.log("Dados carregados do Firestore.");
+                dbData = docSnap.data();
             } else {
-                appContainer.innerHTML = `<div class="text-center p-8 bg-gray-800 rounded-lg"><h2 class="text-2xl font-bold text-red-400">Erro: Base de Dados Não Encontrada</h2><p class="mt-4 text-gray-300">A base de dados do aplicativo ainda não foi inicializada no Firebase. Siga as instruções no arquivo <strong>INSTRUCOES_DATABASE.md</strong> para fazer o upload inicial.</p></div>`;
-                throw new Error("Database not found in Firestore.");
+                console.log("Nenhum documento encontrado no Firestore. Verifique o uploader.");
+                app.innerHTML = `<p class="text-center text-red-400">Erro: Não foi possível carregar os dados. Por favor, execute a página 'uploader.html' primeiro.</p>`;
             }
         };
         
-        const saveAppData = async () => {
-            try {
-                const docRef = doc(firestoreDb, "appData", "content");
-                await setDoc(docRef, appData, { merge: true });
-                console.log("Dados salvos no Firebase.");
-            } catch (error) {
-                console.error("Erro ao salvar dados no Firebase:", error);
-                alert("Não foi possível salvar as alterações. Verifique sua conexão.");
-            }
-        };
-        
-        const getDiseaseById = (diseaseId) => {
-             for (const moduleKey in appData.modules) {
-                const disease = appData.modules[moduleKey].diseases.find(d => d.id === diseaseId);
-                if (disease) return { disease, moduleKey };
-            }
-            const severeDisease = appData.severeConditions.diseases.find(d => d.id === diseaseId);
-            if(severeDisease) return { disease: severeDisease, moduleKey: 'severeConditions' };
-            
-            for(const quickKey in appData.quickReference){
-                const ref = appData.quickReference[quickKey].items.find(i => i.id === diseaseId);
-                if(ref) return { disease: ref, moduleKey: quickKey, isQuickRef: true };
-            }
-            return null;
-        }
-
         const createLucideIcons = () => {
-             setTimeout(() => {
-                if (window.lucide) {
-                    lucide.createIcons();
-                } else {
-                    console.warn('Biblioteca de ícones Lucide ainda não carregada.');
-                }
-            }, 50);
+             if (window.lucide) {
+                lucide.createIcons();
+             } else {
+                // Tenta novamente se a biblioteca ainda não carregou
+                setTimeout(createLucideIcons, 100);
+             }
         };
         
         const renderHeader = (title, showBack = false, showSearch = false) => {
-            const searchHtml = showSearch ? `<div class="relative w-full md:w-1/2"><input type="text" id="search-input" placeholder="Buscar por doença, sintoma, CID-10..." class="w-full bg-gray-800 border border-gray-700 rounded-full py-3 pl-12 pr-4 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"><div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg></div></div>` : '';
-            return `<header class="flex flex-col md:flex-row items-center justify-between mb-8 gap-4"><div class="flex items-center gap-4 w-full md:w-auto">${showBack ? `<button onclick="navigateTo('home')" class="p-2 rounded-full hover:bg-gray-700 transition"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg></button>` : ''}<h1 class="text-3xl font-bold text-white">${title}</h1></div>${searchHtml}</header>`;
+            const searchHtml = showSearch ? `<div class="relative w-full md:w-1/2"><input type="text" id="search-input" placeholder="Buscar por doença, sintoma, CID-10..." class="w-full bg-gray-800 border border-gray-700 rounded-full py-3 pl-12 pr-4 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"><div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"><i data-lucide="search" class="w-5 h-5"></i></div></div>` : '';
+            return `<header class="flex items-center justify-between mb-8"><div class="flex items-center gap-4">${showBack ? `<button onclick="window.history.back()" class="p-2 rounded-full hover:bg-gray-700 transition"><i data-lucide="arrow-left" class="w-6 h-6"></i></button>` : ''}<h1 class="text-3xl font-bold text-white">${title}</h1></div>${searchHtml}</header>`;
         };
         
         const renderHomePage = () => {
-            let modulesHtml = Object.keys(appData.modules).map(key => {
-                const module = appData.modules[key];
-                return `<div onclick="navigateTo('module', '${key}')" class="bg-gray-800 rounded-2xl p-6 cursor-pointer hover:bg-gray-700 hover:scale-105 transition-transform duration-300 flex flex-col items-center justify-center text-center shadow-lg"><i data-lucide="${module.icon}" class="w-12 h-12 mb-4 text-blue-400"></i><h2 class="text-xl font-semibold">${module.name}</h2></div>`;
+            if (!dbData) return;
+            
+            let modulesHtml = Object.keys(dbData.modules).map(key => {
+                const module = dbData.modules[key];
+                return `<div onclick="navigateTo('module', '${key}')" class="bg-gray-800 rounded-2xl p-6 cursor-pointer hover:bg-gray-700 hover:scale-105 transition-transform duration-300 flex flex-col items-center justify-center text-center shadow-lg"><i data-lucide="${module.icon || 'BookHeart'}" class="w-12 h-12 mb-4 text-blue-400"></i><h2 class="text-xl font-semibold">${module.name}</h2></div>`;
             }).join('');
 
-            let severeConditionsHtml = appData.severeConditions.diseases.map(disease => {
-                 return `<div onclick="navigateTo('disease', '${disease.id}')" class="bg-red-900/50 border border-red-700 rounded-2xl p-6 cursor-pointer hover:bg-red-800/60 hover:scale-105 transition-transform duration-300 flex flex-col items-center justify-center text-center shadow-lg"><i data-lucide="${appData.severeConditions.icon}" class="w-12 h-12 mb-4 text-red-400"></i><h2 class="text-xl font-semibold">${disease.name}</h2></div>`;
+            let severeConditionsHtml = dbData.severeConditions.diseases.map(disease => {
+                 return `<div onclick="navigateTo('disease', '${disease.id}')" class="bg-red-900/50 border border-red-700 rounded-2xl p-6 cursor-pointer hover:bg-red-800/60 hover:scale-105 transition-transform duration-300 flex flex-col items-center justify-center text-center shadow-lg"><i data-lucide="${dbData.severeConditions.icon || 'ShieldAlert'}" class="w-12 h-12 mb-4 text-red-400"></i><h2 class="text-xl font-semibold">${disease.name}</h2></div>`;
             }).join('');
             
-            let quickReferenceHtml = Object.keys(appData.quickReference).map(key => {
-                 const ref = appData.quickReference[key];
-                 return `<div onclick="navigateTo('module', '${key}')" class="bg-gray-700 rounded-2xl p-6 cursor-pointer hover:bg-gray-600 hover:scale-105 transition-transform duration-300 flex flex-col items-center justify-center text-center shadow-lg"><i data-lucide="${ref.icon}" class="w-12 h-12 mb-4 text-green-400"></i><h2 class="text-xl font-semibold">${ref.name}</h2></div>`;
+            const quickRefIconMap = {
+                vasoativos: "Droplet",
+                sedoanalgesia: "Bed",
+                bnm: "ZapOff",
+                transfusao: "Blood"
+            };
+
+            let quickReferenceHtml = Object.keys(dbData.quickReference).map(key => {
+                 const module = dbData.quickReference[key];
+                 const icon = module.icon || quickRefIconMap[key] || 'HelpCircle';
+                 return `<div onclick="navigateTo('quickRef', '${key}')" class="bg-gray-800 rounded-2xl p-6 cursor-pointer hover:bg-gray-700 hover:scale-105 transition-transform duration-300 flex flex-col items-center justify-center text-center shadow-lg"><i data-lucide="${icon}" class="w-12 h-12 mb-4 text-teal-400"></i><h2 class="text-xl font-semibold">${module.name}</h2></div>`;
             }).join('');
 
 
-            appContainer.innerHTML = `
-                ${renderHeader('HelpClínica - Guia de Bolso', false, true)}
+            app.innerHTML = `
+                ${renderHeader('Guia de Bolso PS', false, true)}
                 <main id="main-content" class="fade-in">
                     <div id="search-results" class="hidden mb-8"></div>
                     <div id="modules-container">
-                        <h2 class="text-2xl font-semibold mt-10 mb-4 text-gray-300">${appData.severeConditions.name}</h2>
-                        <div id="severe-conditions-grid" class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">${severeConditionsHtml}</div>
+                        <h2 class="text-2xl font-semibold mt-10 mb-4 text-gray-300">Emergências Graves</h2>
+                        <div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">${severeConditionsHtml}</div>
+
                         <h2 class="text-2xl font-semibold mt-10 mb-4 text-gray-300">Módulos por Especialidade</h2>
-                        <div id="modules-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 md:gap-6">${modulesHtml}</div>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 md:gap-6">${modulesHtml}</div>
+                        
                         <h2 class="text-2xl font-semibold mt-10 mb-4 text-gray-300">Consulta Rápida</h2>
-                        <div id="quick-reference-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 md:gap-6">${quickReferenceHtml}</div>
+                        <div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">${quickReferenceHtml}</div>
                     </div>
                 </main>
             `;
@@ -238,88 +184,84 @@
         };
         
         const renderModulePage = (moduleKey) => {
-            const module = appData.modules[moduleKey] || appData.severeConditions || appData.quickReference[moduleKey];
-            if (!module) {
-                navigateTo('home');
-                return;
-            }
-            const items = module.diseases || module.items;
-            let itemsHtml = items.map(item => `<div onclick="navigateTo('disease', '${item.id}')" class="bg-gray-800 rounded-lg p-4 cursor-pointer hover:bg-gray-700 transition"><h3 class="font-semibold text-lg text-blue-300">${item.name}</h3>${item.cid10 ? `<p class="text-sm text-gray-400 mt-1">CID-10: ${item.cid10}</p>` : ''}</div>`).join('');
-            if(items.length === 0) itemsHtml = `<p class="text-gray-400">Nenhuma condição cadastrada neste módulo ainda.</p>`;
-            appContainer.innerHTML = `${renderHeader(module.name, true)}<main class="fade-in space-y-4">${itemsHtml}</main>`;
-        };
-
-        const renderDiseasePage = (diseaseId) => {
-            const result = getDiseaseById(diseaseId);
-            if (!result) { appContainer.innerHTML = `<p>Conteúdo não encontrado.</p>`; return; }
-            const { disease, isQuickRef } = result;
-            
-            const formattedDate = new Date(disease.lastUpdate.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-            
-            const parseContent = (text) => {
-                if (!text) return '';
-                // H3
-                text = text.replace(/### (.*?)\n/g, '<h3 class="text-lg font-semibold mt-6 mb-2 text-blue-300">$1</h3>');
-                // Bold
-                text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-                // List items
-                text = text.replace(/^- (.*)/gm, '<li class="ml-5 list-disc">$1</li>');
-                 // Replace newlines with <br>, but not inside list items
-                text = text.split('\n').map(line => line.trim().startsWith('<li') ? line : line + '<br>').join('').replace(/<br><li/g, '<li').replace(/<\/li><br>/g, '</li>');
-
-                return text;
-            };
-
-            const commentsHtml = (disease.comments || []).map(c => `<div class="bg-gray-700 p-3 rounded-lg mt-2"><p class="text-sm">${c.text}</p><p class="text-xs text-gray-400 mt-1 text-right">- ${c.author} em ${new Date(c.date).toLocaleDateString('pt-BR')}</p></div>`).join('');
-            
-            let pageContent;
-
-            if (isQuickRef) {
-                 pageContent = `
-                    <section><h2>${disease.name}</h2>
-                    <div class="bg-gray-800 p-4 rounded-lg">${parseContent(disease.details)}</div></section>
-                `;
-            } else {
-                 pageContent = `
-                    <div class="space-y-8">
-                        <section><h2>Epidemiologia e Fatores de Risco</h2><div id="incidence-${disease.id}">${parseContent(disease.epidemiology)}</div></section>
-                        <section><h2>Diagnóstico</h2>${parseContent(disease.diagnosis)}</section>
-                        <section><h2>Conduta no PS</h2>${parseContent(disease.management)}</section>
-                        <section><h2>Prescrição Passo a Passo</h2><div class="bg-gray-800 p-4 rounded-lg">${parseContent(disease.prescription)}</div></section>
-                        <section><h2>Red Flags / Sinais de Alerta</h2>${parseContent(disease.redFlags)}</section>
-                        <section><h2>Critérios de Internação</h2>${parseContent(disease.whenToAdmit)}</section>
-                        <section><h2>Links Úteis</h2><ul class="list-disc ml-5"><li><a href="${disease.links.uptodate}" target="_blank" rel="noopener noreferrer" class="hover:underline">UpToDate</a></li><li><a href="${disease.links.guidelines}" target="_blank" rel="noopener noreferrer" class="hover:underline">Diretrizes Brasileiras / PCDT</a></li></ul></section>
-                    </div>
-                `;
-            }
-
-            appContainer.innerHTML = `
-                ${renderHeader(disease.name, true)}
-                <main class="fade-in prose-styles">
-                    <div class="flex justify-between items-center mb-6"><p class="text-sm text-gray-400">Última atualização em: ${formattedDate} por ${disease.lastUpdate.author}</p><button onclick="openEditModal('${disease.id}')" class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition"><i data-lucide="PenSquare" class="w-4 h-4"></i> Editar</button></div>
-                    ${pageContent}
-                    <section class="mt-8"><h2>Discussão / Comentários</h2>
-                        <div id="comments-section">${commentsHtml.length > 0 ? commentsHtml : '<p class="text-gray-500">Nenhum comentário ainda.</p>'}</div>
-                        <div class="mt-4"><textarea id="new-comment-text" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-2" placeholder="Adicionar um comentário..."></textarea><input type="text" id="new-comment-author" class="w-full mt-2 bg-gray-800 p-2 rounded-lg" placeholder="Seu nome (ex: Dr. Silva)"><button onclick="addComment('${disease.id}')" class="mt-2 bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg">Comentar</button></div>
-                    </section>
-                </main>`;
+            const module = dbData.modules[moduleKey];
+            if (!module) { navigateTo('home'); return; }
+            let diseasesHtml = module.diseases.map(disease => `<div onclick="navigateTo('disease', '${disease.id}')" class="bg-gray-800 rounded-lg p-4 cursor-pointer hover:bg-gray-700 transition"><h3 class="font-semibold text-lg text-blue-300">${disease.name}</h3><p class="text-sm text-gray-400 mt-1">CID-10: ${disease.cid10 || 'N/A'}</p></div>`).join('');
+            if(module.diseases.length === 0) diseasesHtml = `<p class="text-gray-400">Nenhuma condição cadastrada neste módulo ainda.</p>`;
+            app.innerHTML = `${renderHeader(module.name, true)}<main class="fade-in space-y-4">${diseasesHtml}</main>`;
             createLucideIcons();
         };
         
-        window.navigateTo = (page, param) => {
+         const renderQuickRefPage = (moduleKey) => {
+            const module = dbData.quickReference[moduleKey];
+            if (!module) { navigateTo('home'); return; }
+            let itemsHtml = module.items.map(item => `<div onclick="navigateTo('disease', '${item.id}')" class="bg-gray-800 rounded-lg p-4 cursor-pointer hover:bg-gray-700 transition"><h3 class="font-semibold text-lg text-teal-300">${item.name}</h3></div>`).join('');
+            if(module.items.length === 0) itemsHtml = `<p class="text-gray-400">Nenhum item cadastrado nesta seção ainda.</p>`;
+            app.innerHTML = `${renderHeader(module.name, true)}<main class="fade-in space-y-4">${itemsHtml}</main>`;
+            createLucideIcons();
+        };
+
+        const renderDiseasePage = (diseaseId) => {
+            let details, moduleKey;
+            
+            const allModules = { ...dbData.modules, severeConditions: dbData.severeConditions, ...dbData.quickReference };
+
+            for (const key in allModules) {
+                 const collection = allModules[key].diseases || allModules[key].items;
+                 const found = collection.find(d => d.id === diseaseId);
+                 if (found) { details = found; moduleKey = key; break; }
+            }
+             
+            if (!details) { app.innerHTML = `<p>Conteúdo não encontrado.</p>`; return; }
+            
+            const formattedDate = new Date(details.lastUpdate.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            const parseMarkdown = text => text ? text.replace(/### (.*)/g, '<h3 class="text-lg font-semibold mt-4 mb-2 text-blue-300">$1</h3>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/^- (.*)/gm, '<li class="ml-4 list-disc">$1</li>').replace(/\n/g, '<br>') : 'N/A';
+            
+            const diagnosisTable = details.diagnosis && details.diagnosis.table ? `<div class="overflow-x-auto mt-4"><table class="w-full text-sm text-left text-gray-400"><thead class="text-xs text-gray-300 uppercase bg-gray-700"><tr>${details.diagnosis.table.headers.map(h => `<th scope="col" class="px-6 py-3">${h}</th>`).join('')}</tr></thead><tbody>${details.diagnosis.table.rows.map(row => `<tr class="bg-gray-800 border-b border-gray-700">${row.map(cell => `<td class="px-6 py-4">${parseMarkdown(cell)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>` : '';
+            const commentsHtml = (details.comments || []).map(c => `<div class="bg-gray-700 p-3 rounded-lg mt-2"><p class="text-sm">${c.text}</p><p class="text-xs text-gray-400 mt-1 text-right">- ${c.author} em ${new Date(c.date).toLocaleDateString('pt-BR')}</p></div>`).join('');
+
+            app.innerHTML = `
+                ${renderHeader(details.name, true)}
+                <main class="fade-in prose-styles max-w-full">
+                    <div class="flex justify-between items-center mb-6"><p class="text-sm text-gray-400">Última atualização em: ${formattedDate} por ${details.lastUpdate.author}</p><button onclick="openEditModal('${details.id}')" class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition"><i data-lucide="pen-square" class="w-4 h-4"></i> Editar</button></div>
+                    <div class="space-y-6">
+                        <section><h2>Epidemiologia e Fatores de Risco</h2><div id="incidence-${details.id}"><p>${parseMarkdown(details.epidemiology)}</p></div></section>
+                        <section><h2>Diagnóstico</h2><p>${parseMarkdown(details.diagnosis)}</p>${diagnosisTable}</section>
+                        <section><h2>Conduta no PS</h2><p>${parseMarkdown(details.management)}</p>${details.flowchart ? `<img src="${details.flowchart}" alt="Fluxograma de Manejo" class="mt-4 rounded-lg w-full">` : ''}</section>
+                        <section><h2>Prescrição</h2><div class="bg-gray-800 p-4 rounded-lg"><pre class="bg-transparent p-0">${details.prescription}</pre></div></section>
+                        <section><h2>Red Flags / Sinais de Alerta</h2><p>${parseMarkdown(details.redFlags)}</p></section>
+                        <section><h2>Critérios de Internação</h2><p>${parseMarkdown(details.whenToAdmit)}</p></section>
+                        <section><h2>Links Úteis</h2><ul class="list-disc ml-5"><li><a href="${details.links.uptodate}" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:underline">UpToDate</a></li><li><a href="${details.links.guidelines}" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:underline">Diretrizes Brasileiras / PCDT</a></li></ul></section>
+                        <section><h2>Discussão / Comentários</h2>
+                            <div id="comments-section">${commentsHtml.length > 0 ? commentsHtml : '<p class="text-gray-500">Nenhum comentário ainda.</p>'}</div>
+                            <div class="mt-4"><textarea id="new-comment-text" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Adicionar um comentário..."></textarea><input type="text" id="new-comment-author" class="w-full mt-2 bg-gray-800 border border-gray-700 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Seu nome (ex: Dr. Silva)"><button onclick="addComment('${details.id}')" class="mt-2 bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg transition">Adicionar Comentário</button></div>
+                        </section>
+                    </div>
+                </main>`;
+            createLucideIcons();
+            fetchIncidenceData(details.id);
+        };
+
+        const navigateTo = (page, param) => {
             window.location.hash = `${page}${param ? `/${param}`: ''}`;
         };
-        
+
         const renderCurrentPage = () => {
             const hash = window.location.hash.substring(1) || 'home';
             const parts = hash.split('/');
             const page = parts[0];
             const param = parts[1] || null;
             
-            if (!appData) return;
+            app.innerHTML = `<div class="flex justify-center items-center h-64"><div class="loader"></div></div>`;
+
+            if (!dbData) {
+                 setTimeout(() => renderCurrentPage(), 100);
+                 return;
+            }
 
             switch (page) {
                 case 'module': renderModulePage(param); break;
+                case 'quickRef': renderQuickRefPage(param); break;
                 case 'disease': renderDiseasePage(param); break;
                 default: renderHomePage();
             }
@@ -336,22 +278,15 @@
                 modulesContainer.classList.remove('hidden');
                 return;
             }
+            
+            const allItems = [
+                ...Object.values(dbData.modules).flatMap(m => m.diseases.map(d => ({...d, moduleName: m.name}))),
+                ...dbData.severeConditions.diseases.map(d => ({...d, moduleName: dbData.severeConditions.name})),
+                ...Object.values(dbData.quickReference).flatMap(m => m.items.map(i => ({...i, moduleName: m.name})))
+            ];
 
-            const allDiseases = [
-                ...Object.values(appData.modules).flatMap(m => m.diseases),
-                ...appData.severeConditions.diseases,
-                ...Object.values(appData.quickReference).flatMap(m => m.items)
-            ].map(d => {
-                let moduleName = "Referência Rápida";
-                if(getDiseaseById(d.id) && !getDiseaseById(d.id).isQuickRef){
-                    const moduleKey = getDiseaseById(d.id).moduleKey;
-                     moduleName = appData.modules[moduleKey]?.name || appData.severeConditions.name;
-                }
-                return { ...d, moduleName };
-            });
-
-            const results = allDiseases.filter(disease => {
-                 const searchableText = [disease.name, ...(disease.keywords || []), disease.cid10].join(' ').toLowerCase();
+            const results = allItems.filter(item => {
+                 const searchableText = [item.name, ...(item.keywords || []), item.cid10].join(' ').toLowerCase();
                  return searchableText.includes(query);
             });
 
@@ -362,60 +297,130 @@
                 `<p class="text-gray-400">Nenhum resultado encontrado para "${query}".</p>`;
         };
 
-        window.openEditModal = (diseaseId) => {
-            const { disease, isQuickRef } = getDiseaseById(diseaseId) || {};
-            if(!disease) return;
-
-            let contentToEdit = '';
-            if (isQuickRef) {
-                 contentToEdit = `<div class="mb-4"><label for="edit-details" class="block text-sm font-medium">Detalhes</label><textarea id="edit-details" rows="10" class="w-full bg-gray-800 rounded-lg p-2">${disease.details || ''}</textarea></div>`;
-            } else {
-                 contentToEdit = ['epidemiology', 'diagnosis', 'management', 'prescription', 'redFlags', 'whenToAdmit']
-                    .map(key => `<div class="mb-4"><label for="edit-${key}" class="block text-sm font-medium capitalize">${key.replace(/([A-Z])/g, ' $1')}</label><textarea id="edit-${key}" rows="6" class="w-full bg-gray-800 rounded-lg p-2">${disease[key] || ''}</textarea></div>`).join('');
+        const openEditModal = (diseaseId) => {
+            let details;
+            const allModules = { ...dbData.modules, severeConditions: dbData.severeConditions, ...dbData.quickReference };
+            for (const key in allModules) {
+                 const collection = allModules[key].diseases || allModules[key].items;
+                 const found = collection.find(d => d.id === diseaseId);
+                 if (found) { details = found; break; }
             }
 
-            modalContainer.innerHTML = `<div class="modal-overlay" onclick="closeModal()"><div class="modal-content" onclick="event.stopPropagation()"><h2 class="text-2xl font-bold mb-4">Editar: ${disease.name}</h2><div class="mb-4"><label for="edit-author" class="block text-sm font-medium">Seu Nome</label><input type="text" id="edit-author" class="w-full bg-gray-800 p-2 rounded-lg" placeholder="Ex: Dr. Silva"></div>${contentToEdit}<div class="flex justify-end gap-4 mt-6"><button onclick="closeModal()" class="py-2 px-4 bg-gray-600 rounded-lg">Cancelar</button><button onclick="saveEdit('${disease.id}')" class="py-2 px-4 bg-blue-600 rounded-lg">Salvar</button></div></div></div>`;
+            const contentToEdit = `
+                <div class="mb-4"><label for="edit-epidemiology" class="block text-sm font-medium text-gray-300 mb-1">Epidemiologia</label><textarea id="edit-epidemiology" rows="4" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-2">${details.epidemiology || ''}</textarea></div>
+                <div class="mb-4"><label for="edit-diagnosis" class="block text-sm font-medium text-gray-300 mb-1">Diagnóstico</label><textarea id="edit-diagnosis" rows="4" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-2">${details.diagnosis || ''}</textarea></div>
+                <div class="mb-4"><label for="edit-management" class="block text-sm font-medium text-gray-300 mb-1">Conduta</label><textarea id="edit-management" rows="4" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-2">${details.management || ''}</textarea></div>
+                <div class="mb-4"><label for="edit-prescription" class="block text-sm font-medium text-gray-300 mb-1">Prescrição</label><textarea id="edit-prescription" rows="6" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-2">${details.prescription || ''}</textarea></div>
+                <div class="mb-4"><label for="edit-redFlags" class="block text-sm font-medium text-gray-300 mb-1">Red Flags</label><textarea id="edit-redFlags" rows="3" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-2">${details.redFlags || ''}</textarea></div>
+                <div class="mb-4"><label for="edit-whenToAdmit" class="block text-sm font-medium text-gray-300 mb-1">Internação</label><textarea id="edit-whenToAdmit" rows="3" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-2">${details.whenToAdmit || ''}</textarea></div>
+            `;
+            modalContainer.innerHTML = `<div class="modal-overlay" onclick="closeModal()"><div class="modal-content" onclick="event.stopPropagation()"><h2 class="text-2xl font-bold mb-4">Editar: ${details.name}</h2><div class="mb-4"><label for="edit-author" class="block text-sm font-medium text-gray-300 mb-1">Seu Nome (Autor da Edição)</label><input type="text" id="edit-author" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-2" placeholder="Ex: Dr. Silva"></div>${contentToEdit}<div class="flex justify-end gap-4 mt-6"><button onclick="closeModal()" class="py-2 px-4 bg-gray-600 hover:bg-gray-700 rounded-lg transition">Cancelar</button><button onclick="saveEdit('${details.id}')" class="py-2 px-4 bg-blue-600 hover:bg-blue-700 rounded-lg transition">Salvar Alterações</button></div></div></div>`;
         };
 
-        window.closeModal = () => { modalContainer.innerHTML = ''; };
+        const closeModal = () => { modalContainer.innerHTML = ''; };
 
-        window.saveEdit = async (diseaseId) => {
-            const { disease, isQuickRef } = getDiseaseById(diseaseId);
+        const saveEdit = async (diseaseId) => {
             const author = document.getElementById('edit-author').value.trim();
             if (!author) { alert("Por favor, insira o nome do autor da edição."); return; }
             
-            if (isQuickRef) {
-                disease.details = document.getElementById('edit-details').value;
-            } else {
-                ['epidemiology', 'diagnosis', 'management', 'prescription', 'redFlags', 'whenToAdmit'].forEach(key => {
-                    const textarea = document.getElementById(`edit-${key}`);
-                    if (textarea) disease[key] = textarea.value;
-                });
+            const updatedFields = {
+                epidemiology: document.getElementById('edit-epidemiology').value,
+                diagnosis: document.getElementById('edit-diagnosis').value,
+                management: document.getElementById('edit-management').value,
+                prescription: document.getElementById('edit-prescription').value,
+                redFlags: document.getElementById('edit-redFlags').value,
+                whenToAdmit: document.getElementById('edit-whenToAdmit').value,
+                lastUpdate: { date: new Date().toISOString(), author: author }
+            };
+
+            let found = false;
+            for (const key in dbData.modules) {
+                const diseaseIndex = dbData.modules[key].diseases.findIndex(d => d.id === diseaseId);
+                if (diseaseIndex !== -1) {
+                    Object.assign(dbData.modules[key].diseases[diseaseIndex], updatedFields);
+                    found = true; break;
+                }
             }
-            disease.lastUpdate = { date: new Date().toISOString(), author: author };
-            
-            await saveAppData();
-            closeModal();
-            renderDiseasePage(diseaseId);
+             if (!found) {
+                 for (const key in dbData.quickReference) {
+                    const itemIndex = dbData.quickReference[key].items.findIndex(i => i.id === diseaseId);
+                     if (itemIndex !== -1) {
+                        Object.assign(dbData.quickReference[key].items[itemIndex], updatedFields);
+                        found = true; break;
+                    }
+                 }
+            }
+            if(!found){
+                const severeIndex = dbData.severeConditions.diseases.findIndex(d => d.id === diseaseId);
+                if(severeIndex !== -1){
+                    Object.assign(dbData.severeConditions.diseases[severeIndex], updatedFields);
+                }
+            }
+
+
+            try {
+                const docRef = window.doc(window.db, "appData", "content");
+                await window.setDoc(docRef, dbData);
+                console.log("Alterações salvas no Firestore.");
+                closeModal();
+                renderDiseasePage(diseaseId);
+            } catch (error) {
+                console.error("Erro ao salvar no Firestore:", error);
+                alert("Ocorreu um erro ao salvar as alterações. Verifique o console.");
+            }
         };
         
-        window.addComment = async (diseaseId) => {
-            const { disease } = getDiseaseById(diseaseId);
+        const addComment = async (diseaseId) => {
             const text = document.getElementById('new-comment-text').value.trim();
             const author = document.getElementById('new-comment-author').value.trim();
             if (!text || !author) { alert("Por favor, preencha o comentário e seu nome."); return; }
-            if(!disease.comments) disease.comments = [];
-            disease.comments.push({ text, author, date: new Date().toISOString() });
             
-            await saveAppData();
-            renderDiseasePage(diseaseId);
+            const newComment = { text, author, date: new Date().toISOString() };
+            
+            let found = false;
+            for (const key in dbData.modules) {
+                const disease = dbData.modules[key].diseases.find(d => d.id === diseaseId);
+                if (disease) {
+                    if(!disease.comments) disease.comments = [];
+                    disease.comments.push(newComment);
+                    found = true; break;
+                }
+            }
+             if (!found) {
+                 for (const key in dbData.quickReference) {
+                    const item = dbData.quickReference[key].items.find(i => i.id === diseaseId);
+                     if (item) {
+                        if(!item.comments) item.comments = [];
+                        item.comments.push(newComment);
+                        found = true; break;
+                    }
+                 }
+            }
+            if(!found){
+                const severeDisease = dbData.severeConditions.diseases.find(d => d.id === diseaseId);
+                if(severeDisease){
+                    if(!severeDisease.comments) severeDisease.comments = [];
+                    severeDisease.comments.push(newComment);
+                }
+            }
+
+            try {
+                const docRef = window.doc(window.db, "appData", "content");
+                await window.setDoc(docRef, dbData);
+                console.log("Comentário salvo no Firestore.");
+                renderDiseasePage(diseaseId);
+            } catch (error) {
+                console.error("Erro ao salvar comentário:", error);
+                alert("Ocorreu um erro ao salvar o comentário. Verifique o console.");
+            }
         };
         
         let deferredPrompt;
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
-            document.getElementById('install-prompt').style.display = 'flex';
+            const installPrompt = document.getElementById('install-prompt');
+            if(installPrompt) installPrompt.style.display = 'flex';
         });
         document.getElementById('install-button').addEventListener('click', async () => {
             document.getElementById('install-prompt').style.display = 'none';
@@ -437,19 +442,19 @@
             });
         }
         
-        // --- INICIALIZAÇÃO ---
+        // Router Logic
+        window.navigateTo = navigateTo;
+        window.openEditModal = openEditModal;
+        window.closeModal = closeModal;
+        window.saveEdit = saveEdit;
+        window.addComment = addComment;
+        
         window.addEventListener('hashchange', renderCurrentPage);
         document.addEventListener('DOMContentLoaded', async () => {
-            try {
-                await loadAppData();
-                renderCurrentPage();
-            } catch(error) {
-                console.error("Falha na inicialização do app:", error);
-            }
+            await loadDb();
+            renderCurrentPage();
         });
-
     </script>
-
 </body>
 </html>
 
