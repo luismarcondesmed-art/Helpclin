@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guia de Bolso PS</title>
+    <meta name="description" content="Guia de referência rápida para as principais doenças do pronto-socorro.">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="./manifest.webmanifest">
+    <meta name="theme-color" content="#1f2937">
+    <link rel="apple-touch-icon" href="https://placehold.co/192x192/1f2937/ffffff?text=PS">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide-react@0.294.0/dist/lucide-react.js"></script>
+    
+    <!-- Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+        }
+        .modal-content {
+            background-color: #1f2937;
+            padding: 2rem;
+            border-radius: 0.75rem;
+            max-width: 90%;
+            width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .prose-styles h1, .prose-styles h2, .prose-styles h3 {
+            color: #f3f4f6;
+        }
+        .prose-styles p, .prose-styles li {
+            color: #d1d5db;
+        }
+        .prose-styles strong {
+            color: #93c5fd;
+        }
+        .prose-styles a {
+            color: #60a5fa;
+        }
+        .prose-styles pre {
+            background-color: #111827;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            color: #d1d5db;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        #install-prompt {
+            display: none;
+            position: fixed;
+            bottom: 1rem;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-200">
+
+    <div id="app" class="max-w-4xl mx-auto p-4 md:p-6">
+        <!-- O conteúdo será injetado pelo JavaScript -->
+    </div>
+
+    <div id="modal-container">
+        <!-- O modal será injetado aqui -->
+    </div>
+
+    <div id="install-prompt" class="bg-blue-600 text-white py-2 px-4 rounded-lg shadow-lg flex items-center gap-4">
+        <p>Instale o app para acesso offline!</p>
+        <button id="install-button" class="bg-white text-blue-600 font-semibold py-1 px-3 rounded-md">Instalar</button>
+        <button id="close-install-prompt" class="text-white">&times;</button>
+    </div>
+
+    <!-- Script Principal da Aplicação -->
+    <script>
+        const initialDb = {
+            modules: {
+                respiratorio: {
+                    name: "Respiratório",
+                    icon: "Lung",
+                    diseases: [
+                        {
+                            id: "asma",
+                            name: "Crise de Asma | Exacerbação Asmática",
+                            keywords: ["asma", "dispneia", "chiado", "sibilos", "falta de ar", "broncoespasmo"],
+                            cid10: "J45",
+                            lastUpdate: { date: "2025-09-03T15:00:00Z", author: "Dr. Luis (Protótipo)" },
+                            epidemiology: { text: "Infecções virais são responsáveis por mais de 80% dos casos de exacerbações asmáticas no PS.", incidence: null },
+                            diagnosis: {
+                                text: "A avaliação com prova de função pulmonar ou peak-flow é fundamental. Alteração de estado mental, confusão, sonolência, bradicardia, incapacidade de fala e tórax silencioso indicam parada cardíaca iminente.",
+                                table: {
+                                    headers: ["Sinais", "Leve", "Moderada", "Grave", "Iminência PCR"],
+                                    rows: [
+                                        ["Dispneia", "Na atividade física", "Ao falar", "Em repouso", "Em repouso"],
+                                        ["Capacidade de fala", "Sentenças", "Frases", "Palavras", "Incapaz de Falar"],
+                                        ["FC", "< 100", "100 a 120", "> 120", "Bradicardia"],
+                                        ["SatO2", "> 95%", "91 a 95%", "< 90%", "< 90%"],
+                                    ]
+                                }
+                            },
+                            management: { text: "O tratamento se baseia na estabilização, oxigenioterapia se SatO2 < 92%, e uso de broncodilatadores. Em casos graves ou refratários, considerar corticoides EV e Sulfato de Magnésio.", flowchart: "https://placehold.co/600x800/374151/ffffff?text=Fluxograma+Crise+Asmática" },
+                            prescription: { text: `### β-2-agonista de Curta Duração (SABA)\n- **Nebulização:** Salbutamol (5mg/mL) 10-20 gotas em 4mL de SF0,9% a cada 20 min na primeira hora.\n- **Spray:** Salbutamol (100mcg/dose) 4-10 puffs a cada 20 min na primeira hora.\n\n### Anticolinérgico de Curta Duração (SAMA)\n- **Nebulização:** Ipratrópio (0,25mg/mL) 20-40 gotas, associado ao SABA.\n- **Spray:** Ipratrópio (200mcg/dose) 4-10 puffs, associado ao SABA.\n\n### Corticoterapia\n- **Oral (preferencial):** Prednisona 40-80mg VO.\n- **Endovenoso:** Metilprednisolona 40mg EV 12/12h ou Hidrocortisona 200mg EV ataque.\n\n### Sulfato de Magnésio (Casos graves refratários)\n- Fazer 1,2 a 2,0g diluídos em 100mL SF0,9% EV em 20 min.`},
+                            redFlags: "Alteração do nível de consciência, tórax silencioso, bradicardia, incapacidade de falar, uso de musculatura acessória com respiração paradoxal.",
+                            whenToAdmit: "VEF1 ou peak-flow < 25% na admissão, ou < 40% após tratamento. Incapacidade de deambular sem dispneia. Resposta incompleta ao tto com história de asma quase fatal.",
+                            links: { uptodate: "https://www.uptodate.com/contents/acute-exacerbations-of-asthma-in-adults-emergency-department-and-inpatient-management", guidelines: "https://www.sbpt.org.br/portal/diretrizes-asma-sbpt/" },
+                            comments: []
+                        }
+                    ]
+                },
+                cardiovascular: {
+                    name: "Cardiovascular",
+                    icon: "HeartPulse",
+                    diseases: [
+                        {
+                            id: "sca",
+                            name: "Síndrome Coronariana Aguda (SCA)",
+                            keywords: ["sca", "iam", "infarto", "angina", "dor no peito", "supradesnível", "infradesnível"],
+                            cid10: "I20-I25",
+                            lastUpdate: { date: "2025-09-03T15:00:00Z", author: "Dr. Luis (Protótipo)" },
+                            epidemiology: { text: "As doenças cardiovasculares são a principal causa de morte no Brasil e no mundo.", incidence: null },
+                            diagnosis: { text: "O diagnóstico é baseado na clínica (dor torácica ou equivalentes anginosos), alterações no ECG (supra/infra de ST, inversão de onda T) e marcadores de necrose miocárdica (troponina)." },
+                            management: { text: "O manejo inicial é o M.O.N.A.B.I.C.H (Morfina, Oxigênio, Nitrato, AAS, Betabloqueador, Inibidor P2Y12, Clopidogrel, Heparina). A decisão entre estratégia conservadora, CATE de emergência ou trombólise depende do tipo de SCA (com ou sem supra de ST) e da estratificação de risco (GRACE, TIMI).", flowchart: "https://placehold.co/600x800/374151/ffffff?text=Fluxograma+SCA" },
+                            prescription: { text: `### Abordagem Inicial (SCASSST)\n- **AAS:** 300mg VO mastigado (ataque) + 100mg/dia (manutenção).\n- **Inibidor P2Y12:** Clopidogrel 300mg VO (ataque) ou Ticagrelor 180mg VO (ataque). *Atenção: Diretrizes recentes sugerem aguardar CATE se < 24h*.\n- **Anticoagulação Plena:** Enoxaparina 1mg/kg SC 12/12h ou HNF em bomba.\n- **Terapia Antianginosa:** Nitrato sublingual (Isossorbida 5mg) e/ou EV (Nitroglicerina/Tridil) se PA permitir.\n- **Estatina:** Atorvastatina 80mg ou Rosuvastatina 40mg.\n- **Betabloqueador:** Metoprolol ou similar se estável hemodinamicamente.\n\n### Reperfusão (SCACSST)\n- **Angioplastia Primária (ICP):** Terapia de escolha se porta-balão < 90-120 min.\n- **Trombólise Química:** Se ICP não disponível no tempo ideal. Alteplase (rtPA) ou Tenecteplase (TNK).` },
+                            redFlags: "Dor torácica refratária, instabilidade hemodinâmica (choque cardiogênico), arritmias ventriculares, nova insuficiência mitral, complicações mecânicas.",
+                            whenToAdmit: "Todo paciente com SCA deve ser internado, preferencialmente em unidade coronariana ou CTI.",
+                            links: { uptodate: "https://www.uptodate.com/contents/overview-of-the-acute-management-of-st-elevation-myocardial-infarction", guidelines: "https://abccardiol.org/article/diretriz-de-sindrome-coronariana-aguda-sca-da-sociedade-brasileira-de-cardiologia-2021/" },
+                            comments: []
+                        }
+                    ]
+                },
+                neurologico: {
+                    name: "Neurológico",
+                    icon: "BrainCircuit",
+                    diseases: [
+                         {
+                            id: "avci",
+                            name: "Acidente Vascular Cerebral Isquêmico (AVCi)",
+                            keywords: ["avc", "ave", "derrame", "isquemia cerebral", "déficit neurológico", "trombólise"], cid10: "I63",
+                            lastUpdate: { date: "2025-09-03T15:00:00Z", author: "Dr. Luis (Protótipo)" },
+                            epidemiology: { text: "O AVC é uma das principais causas de morte e incapacidade no Brasil. O tipo isquêmico corresponde a cerca de 85% dos casos.", incidence: null },
+                            diagnosis: { text: "Diagnóstico baseado em déficit neurológico focal de início súbito (escala NIHSS). A TC de crânio sem contraste é obrigatória para excluir hemorragia e guiar a terapia de reperfusão." },
+                            management: { text: "Tempo é cérebro! O manejo foca na estabilização (ABCDE), controle pressórico permissivo (geralmente não se baixa a PA, exceto se > 220x120 mmHg ou candidato a trombólise) e terapia de reperfusão se elegível.", flowchart: "https://placehold.co/600x800/374151/ffffff?text=Fluxograma+AVCi" },
+                            prescription: { text: `### Trombólise Endovenosa (se janela < 4.5h e sem contraindicações)\n- **Alteplase (rtPA):** 0,9mg/kg (máx 90mg).\n- **Administração:** 10% da dose em bolus em 1 minuto, e o restante 90% em infusão contínua por 1 hora.\n- **Controle Pressórico (para trombólise):** Manter PA < 185x110 mmHg antes e < 180x105 mmHg durante/após. Usar Labetalol ou Nitroprussiato EV.\n\n### Trombectomia Mecânica\n- Indicada para oclusão de grandes vasos (circulação anterior) em até 24h do ictus, dependendo de critérios de neuroimagem avançada (Angio-TC/RM).\n\n### Paciente NÃO trombolisado\n- **AAS:** 300mg VO (ataque) nas primeiras 24-48h.\n- **Profilaxia de TEV:** Compressão pneumática intermitente. Heparina profilática após 24h se estável.\n- **Controle glicêmico:** Alvo 140-180 mg/dL.\n- **Estatinas:** Iniciar Atorvastatina 80mg.`},
+                            redFlags: "Rebaixamento do nível de consciência, sinais de hipertensão intracraniana, transformação hemorrágica (piora súbita da cefaleia, náuseas, vômitos, piora neurológica).",
+                            whenToAdmit: "Todo paciente com AVCi agudo deve ser internado em Unidade de AVC (Stroke Unit) ou CTI.",
+                            links: { uptodate: "https://www.uptodate.com/contents/initial-assessment-and-management-of-acute-stroke", guidelines: "https://abcmc.org.br/wp-content/uploads/2021/03/Diretrizes-no-tratamento-do-AVCi-fase-aguda_compressed-1.pdf" },
+                            comments: []
+                        }
+                    ]
+                },
+                 infeccioso: { name: "Infeccioso", icon: "Virus", diseases: [] },
+                 metabolico: { name: "Metabólico", icon: "Droplets", diseases: [] },
+                 gastro: { name: "Gastrointestinal", icon: "Stomach", diseases: [] },
+                 externas: { name: "Causas Externas", icon: "Siren", diseases: [] },
+            },
+            severeConditions: {
+                 name: "Emergências Graves",
+                 icon: "ShieldAlert",
+                 diseases: [
+                    {
+                        id: "sepse",
+                        name: "Sepse e Choque Séptico",
+                        keywords: ["sepse", "choque séptico", "infecção", "disfunção orgânica", "lactato", "hipotensão"],
+                        cid10: "A41.9",
+                        lastUpdate: { date: "2025-09-03T16:00:00Z", author: "Dr. Luis (Protótipo)" },
+                        epidemiology: { text: "A sepse ocorre quando a resposta a uma infecção se torna desregulada, causando disfunção orgânica. Idosos e imunodeficientes podem não apresentar febre.", incidence: null },
+                        diagnosis: { text: "Diagnóstico com infecção suspeita + aumento de ≥ 2 pontos no escore SOFA. O Escore NEWS pode ser usado para triagem. Choque séptico é a sepse com hipotensão persistente necessitando de vasopressores para manter PAM ≥ 65 mmHg e lactato > 2 mmol/L apesar de reposição volêmica adequada." },
+                        management: { text: "O tratamento deve ser iniciado na primeira hora ('Hour-1 Bundle'): Obter culturas, administrar antibióticos de amplo espectro, iniciar reposição volêmica com 30 mL/kg de cristaloide para hipotensão ou lactato ≥ 4 mmol/L, e aplicar vasopressores se hipotensão refratária a volume.", flowchart: "https://placehold.co/600x800/374151/ffffff?text=Fluxograma+Sepse" },
+                        prescription: { text: `### Ressuscitação Volêmica\n- **Cristaloides (RL ou SF0,9%):** 30 mL/kg em infusão rápida (alíquotas de 500-1000 mL) na presença de hipoperfusão.\n\n### Drogas Vasoativas\n- **Noradrenalina:** Primeira escolha para manter PAM ≥ 65 mmHg.\n- **Vasopressina:** Pode ser associada se doses altas de noradrenalina.\n\n### Antibioticoterapia Empírica\n- **Amplo espectro, guiado pelo foco suspeito:**\n  - *Foco Pulmonar Comunitário:* Ceftriaxona + Azitromicina.\n  - *Foco Abdominal:* Ceftriaxona + Metronidazol ou Piperacilina-Tazobactam.\n  - *Foco Urinário:* Ciprofloxacino ou Ceftriaxona.\n\n### Corticoides\n- **Hidrocortisona 200mg/dia:** Considerar apenas em choque séptico refratário a volume e vasopressores.` },
+                        redFlags: "Hipotensão refratária a volume, lactato > 2 mmol/L, necessidade de drogas vasoativas, alteração do nível de consciência, oligúria.",
+                        whenToAdmit: "Todo paciente com sepse deve ser internado. Choque séptico necessita de admissão em CTI.",
+                        links: { uptodate: "https://www.uptodate.com/contents/evaluation-and-management-of-suspected-sepsis-and-septic-shock-in-adults", guidelines: "https://ilas.org.br/diretrizes-sepse-2021-ssc/" },
+                        comments: []
+                    }
+                 ]
+            }
+        };
+
+        const app = document.getElementById('app');
+        const modalContainer = document.getElementById('modal-container');
+        let db;
+
+        const loadDb = () => {
+            const savedDb = localStorage.getItem('medGuideDb');
+            db = savedDb ? JSON.parse(savedDb) : JSON.parse(JSON.stringify(initialDb));
+        };
+        
+        const saveDb = () => {
+            localStorage.setItem('medGuideDb', JSON.stringify(db));
+        };
+
+        const getDiseaseById = (diseaseId) => {
+            for (const moduleKey in db.modules) {
+                const disease = db.modules[moduleKey].diseases.find(d => d.id === diseaseId);
+                if (disease) return { disease, moduleKey };
+            }
+            const severeDisease = db.severeConditions.diseases.find(d => d.id === diseaseId);
+            if(severeDisease) return { disease: severeDisease, moduleKey: 'severeConditions' };
+            return null;
+        }
+        
+        const fetchIncidenceData = async (diseaseId) => {
+            const element = document.getElementById(`incidence-${diseaseId}`);
+            if (!element) return;
+            element.innerHTML = `<div class="flex items-center gap-2"><div class="loader"></div><span>Buscando dados de incidência no DataSUS...</span></div>`;
+            await new Promise(resolve => setTimeout(resolve, 1500)); 
+            const mockIncidence = { asma: "Estima-se 20 milhões de asmáticos no Brasil.", sca: "Cerca de 300 a 400 mil casos anuais no Brasil.", avci: "Mais de 100 mil óbitos por ano no Brasil.", sepse: "Alta incidência e letalidade no Brasil, com cerca de 240 mil mortes por ano." };
+            element.innerHTML = `<p>${mockIncidence[diseaseId] || "Dados de incidência não disponíveis no momento."}</p>`;
+        };
+
+        const createLucideIcons = () => {
+            if (window.lucide) {
+                lucide.createIcons();
+            } else {
+                console.warn('Biblioteca de ícones Lucide ainda não carregada.');
+            }
+        };
+        
+        const renderHeader = (title, showBack = false, showSearch = false) => {
+            const searchHtml = showSearch ? `<div class="relative w-full md:w-1/2"><input type="text" id="search-input" placeholder="Buscar por doença, sintoma, CID-10..." class="w-full bg-gray-800 border border-gray-700 rounded-full py-3 pl-12 pr-4 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"><div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg></div></div>` : '';
+            return `<header class="flex items-center justify-between mb-8"><div class="flex items-center gap-4">${showBack ? `<button onclick="navigateTo('home')" class="p-2 rounded-full hover:bg-gray-700 transition"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg></button>` : ''}<h1 class="text-3xl font-bold text-white">${title}</h1></div>${searchHtml}</header>`;
+        };
+        
+        const renderHomePage = () => {
+            let modulesHtml = Object.keys(db.modules).map(key => {
+                const module = db.modules[key];
+                return `<div onclick="navigateTo('module', '${key}')" class="bg-gray-800 rounded-2xl p-6 cursor-pointer hover:bg-gray-700 hover:scale-105 transition-transform duration-300 flex flex-col items-center justify-center text-center shadow-lg"><i data-lucide="${module.icon}" class="w-12 h-12 mb-4 text-blue-400"></i><h2 class="text-xl font-semibold">${module.name}</h2></div>`;
+            }).join('');
+
+            let severeConditionsHtml = db.severeConditions.diseases.map(disease => {
+                 return `<div onclick="navigateTo('disease', '${disease.id}')" class="bg-red-900/50 border border-red-700 rounded-2xl p-6 cursor-pointer hover:bg-red-800/60 hover:scale-105 transition-transform duration-300 flex flex-col items-center justify-center text-center shadow-lg"><i data-lucide="${db.severeConditions.icon}" class="w-12 h-12 mb-4 text-red-400"></i><h2 class="text-xl font-semibold">${disease.name}</h2></div>`;
+            }).join('');
+
+            app.innerHTML = `
+                ${renderHeader('Guia de Bolso PS', false, true)}
+                <main id="main-content" class="fade-in">
+                    <div id="search-results" class="hidden mb-8"></div>
+                    <div id="modules-container">
+                        <h2 class="text-2xl font-semibold mb-4 text-gray-300">Módulos Principais</h2>
+                        <div id="modules-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 md:gap-6">${modulesHtml}</div>
+                        <h2 class="text-2xl font-semibold mt-10 mb-4 text-gray-300">${db.severeConditions.name}</h2>
+                        <div id="severe-conditions-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 md:gap-6">${severeConditionsHtml}</div>
+                    </div>
+                </main>
+            `;
+            createLucideIcons();
+            document.getElementById('search-input').addEventListener('input', handleSearch);
+        };
+        
+        const renderModulePage = (moduleKey) => {
+            const module = moduleKey === 'severeConditions' ? db.severeConditions : db.modules[moduleKey];
+            let diseasesHtml = module.diseases.map(disease => `<div onclick="navigateTo('disease', '${disease.id}')" class="bg-gray-800 rounded-lg p-4 cursor-pointer hover:bg-gray-700 transition"><h3 class="font-semibold text-lg text-blue-300">${disease.name}</h3><p class="text-sm text-gray-400 mt-1">CID-10: ${disease.cid10}</p></div>`).join('');
+            if(module.diseases.length === 0) diseasesHtml = `<p class="text-gray-400">Nenhuma condição cadastrada neste módulo ainda.</p>`;
+            app.innerHTML = `${renderHeader(module.name, true)}<main class="fade-in space-y-4">${diseasesHtml}</main>`;
+        };
+
+        const renderDiseasePage = (diseaseId) => {
+            const result = getDiseaseById(diseaseId);
+            if (!result) { app.innerHTML = `<p>Doença não encontrada.</p>`; return; }
+            const { disease } = result;
+
+            const formattedDate = new Date(disease.lastUpdate.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            const parseMarkdown = text => text ? text.replace(/### (.*)/g, '<h3 class="text-lg font-semibold mt-4 mb-2 text-blue-300">$1</h3>').replace(/\*\* (.*) \*\*/g, '<strong>$1</strong>').replace(/^- (.*)/gm, '<li class="ml-4 list-disc">$1</li>') : '';
+            
+            const diagnosisTable = disease.diagnosis.table ? `<div class="overflow-x-auto mt-4"><table class="w-full text-sm text-left text-gray-400"><thead class="text-xs text-gray-300 uppercase bg-gray-700"><tr>${disease.diagnosis.table.headers.map(h => `<th scope="col" class="px-6 py-3">${h}</th>`).join('')}</tr></thead><tbody>${disease.diagnosis.table.rows.map(row => `<tr class="bg-gray-800 border-b border-gray-700">${row.map(cell => `<td class="px-6 py-4">${cell}</td>`).join('')}</tr>`).join('')}</tbody></table></div>` : '';
+            const commentsHtml = disease.comments.map(c => `<div class="bg-gray-700 p-3 rounded-lg mt-2"><p class="text-sm">${c.text}</p><p class="text-xs text-gray-400 mt-1 text-right">- ${c.author} em ${new Date(c.date).toLocaleDateString('pt-BR')}</p></div>`).join('');
+
+            app.innerHTML = `
+                ${renderHeader(disease.name, true)}
+                <main class="fade-in prose-styles">
+                    <div class="flex justify-between items-center mb-6"><p class="text-sm text-gray-400">Última atualização em: ${formattedDate} por ${disease.lastUpdate.author}</p><button onclick="openEditModal('${disease.id}')" class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition"><i data-lucide="PenSquare" class="w-4 h-4"></i> Editar</button></div>
+                    <div class="space-y-6">
+                        <section><h2>Epidemiologia e Fatores de Risco</h2><div id="incidence-${disease.id}">${disease.epidemiology.text}</div></section>
+                        <section><h2>Diagnóstico</h2><p>${disease.diagnosis.text}</p>${diagnosisTable}</section>
+                        <section><h2>Conduta no PS</h2><p>${disease.management.text}</p><img src="${disease.management.flowchart}" alt="Fluxograma de Manejo" class="mt-4 rounded-lg w-full"></section>
+                        <section><h2>Prescrição Passo a Passo</h2><div class="bg-gray-800 p-4 rounded-lg"><pre class="bg-transparent p-0">${parseMarkdown(disease.prescription.text)}</pre></div></section>
+                        <section><h2>Red Flags / Sinais de Alerta</h2><p>${disease.redFlags}</p></section>
+                        <section><h2>Critérios de Internação</h2><p>${disease.whenToAdmit}</p></section>
+                        <section><h2>Links Úteis</h2><ul class="list-disc ml-5"><li><a href="${disease.links.uptodate}" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:underline">UpToDate</a></li><li><a href="${disease.links.guidelines}" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:underline">Diretrizes Brasileiras / PCDT</a></li></ul></section>
+                        <section><h2>Discussão / Comentários</h2>
+                            <div id="comments-section">${commentsHtml.length > 0 ? commentsHtml : '<p class="text-gray-500">Nenhum comentário ainda.</p>'}</div>
+                            <div class="mt-4"><textarea id="new-comment-text" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Adicionar um comentário..."></textarea><input type="text" id="new-comment-author" class="w-full mt-2 bg-gray-800 border border-gray-700 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Seu nome (ex: Dr. Silva)"><button onclick="addComment('${disease.id}')" class="mt-2 bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg transition">Adicionar Comentário</button></div>
+                        </section>
+                    </div>
+                </main>`;
+            createLucideIcons();
+            fetchIncidenceData(disease.id);
+        };
+
+        const navigateTo = (page, param) => {
+            window.location.hash = `${page}${param ? `/${param}`: ''}`;
+        };
+
+        const renderCurrentPage = () => {
+            const hash = window.location.hash.substring(1) || 'home';
+            const parts = hash.split('/');
+            const page = parts[0];
+            const param = parts[1] || null;
+            
+            switch (page) {
+                case 'module': renderModulePage(param); break;
+                case 'disease': renderDiseasePage(param); break;
+                default: renderHomePage();
+            }
+        };
+        
+        const handleSearch = (event) => {
+            const query = event.target.value.toLowerCase().trim();
+            const resultsContainer = document.getElementById('search-results');
+            const modulesContainer = document.getElementById('modules-container');
+
+            if (query.length < 2) {
+                resultsContainer.innerHTML = '';
+                resultsContainer.classList.add('hidden');
+                modulesContainer.classList.remove('hidden');
+                return;
+            }
+
+            const allDiseases = [
+                ...Object.values(db.modules).flatMap(m => m.diseases.map(d => ({ ...d, moduleName: m.name }))),
+                ...db.severeConditions.diseases.map(d => ({ ...d, moduleName: db.severeConditions.name }))
+            ];
+            
+            const results = allDiseases.filter(disease => {
+                 const searchableText = [disease.name, ...disease.keywords, disease.cid10].join(' ').toLowerCase();
+                 return searchableText.includes(query);
+            });
+
+            modulesContainer.classList.add('hidden');
+            resultsContainer.classList.remove('hidden');
+            resultsContainer.innerHTML = results.length > 0 ?
+                `<h2 class="text-2xl font-semibold mb-4">Resultados da Busca</h2><div class="space-y-4">${results.map(d => `<div onclick="navigateTo('disease', '${d.id}')" class="bg-gray-800 rounded-lg p-4 cursor-pointer hover:bg-gray-700 transition"><h3 class="font-semibold text-lg text-blue-300">${d.name}</h3><p class="text-sm text-gray-400 mt-1">${d.moduleName}</p></div>`).join('')}</div>` :
+                `<p class="text-gray-400">Nenhum resultado encontrado para "${query}".</p>`;
+        };
+
+        const openEditModal = (diseaseId) => {
+            const { disease } = getDiseaseById(diseaseId);
+            const contentToEdit = Object.keys(disease).filter(key => typeof disease[key] === 'object' && !Array.isArray(disease[key]) && key !== 'lastUpdate' && key !== 'links').map(key => `<div class="mb-4"><label for="edit-${key}" class="block text-sm font-medium text-gray-300 mb-1 capitalize">${key}</label><textarea id="edit-${key}" rows="6" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500">${disease[key].text || ''}</textarea></div>`).join('');
+            modalContainer.innerHTML = `<div class="modal-overlay" onclick="closeModal()"><div class="modal-content" onclick="event.stopPropagation()"><h2 class="text-2xl font-bold mb-4">Editar: ${disease.name}</h2><div class="mb-4"><label for="edit-author" class="block text-sm font-medium text-gray-300 mb-1">Seu Nome (Autor da Edição)</label><input type="text" id="edit-author" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-2" placeholder="Ex: Dr. Silva"></div>${contentToEdit}<div class="flex justify-end gap-4 mt-6"><button onclick="closeModal()" class="py-2 px-4 bg-gray-600 hover:bg-gray-700 rounded-lg transition">Cancelar</button><button onclick="saveEdit('${disease.id}')" class="py-2 px-4 bg-blue-600 hover:bg-blue-700 rounded-lg transition">Salvar Alterações</button></div></div></div>`;
+        };
+
+        const closeModal = () => { modalContainer.innerHTML = ''; };
+
+        const saveEdit = (diseaseId) => {
+            const { disease } = getDiseaseById(diseaseId);
+            const author = document.getElementById('edit-author').value.trim();
+            if (!author) { alert("Por favor, insira o nome do autor da edição."); return; }
+            Object.keys(disease).filter(key => typeof disease[key] === 'object' && !Array.isArray(disease[key]) && key !== 'lastUpdate' && key !== 'links').forEach(key => {
+                const textarea = document.getElementById(`edit-${key}`);
+                if (textarea) disease[key].text = textarea.value;
+            });
+            disease.lastUpdate = { date: new Date().toISOString(), author: author };
+            saveDb();
+            closeModal();
+            renderDiseasePage(diseaseId);
+        };
+        
+        const addComment = (diseaseId) => {
+            const { disease } = getDiseaseById(diseaseId);
+            const text = document.getElementById('new-comment-text').value.trim();
+            const author = document.getElementById('new-comment-author').value.trim();
+            if (!text || !author) { alert("Por favor, preencha o comentário e seu nome."); return; }
+            disease.comments.push({ text, author, date: new Date().toISOString() });
+            saveDb();
+            renderDiseasePage(diseaseId);
+        };
+        
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            document.getElementById('install-prompt').style.display = 'flex';
+        });
+        document.getElementById('install-button').addEventListener('click', async () => {
+            document.getElementById('install-prompt').style.display = 'none';
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                await deferredPrompt.userChoice;
+                deferredPrompt = null;
+            }
+        });
+        document.getElementById('close-install-prompt').addEventListener('click', () => {
+             document.getElementById('install-prompt').style.display = 'none';
+        });
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(registration => console.log('Service Worker registrado com sucesso:', registration.scope))
+                    .catch(error => console.log('Falha ao registrar Service Worker:', error));
+            });
+        }
+
+        window.addEventListener('hashchange', renderCurrentPage);
+        document.addEventListener('DOMContentLoaded', () => {
+            loadDb();
+            renderCurrentPage();
+        });
+    </script>
+
+</body>
+</html>
+
