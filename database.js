@@ -66,7 +66,7 @@ const prescrevendoData = {
             ]
           },
           {
-            title: "Prescrição Ambulatorial - DOR LEVE/MODERADA",
+            title: "Prescrição Ambulatorial - DOR LEVE OU MODERADA",
             type: "verde",
             items: [
               "<strong>1) Dipirona 500 mg (1 cx)</strong><br>Tomar 1 a 2 comprimido(s), via oral, de 6/6h, se dor.",
@@ -218,7 +218,7 @@ const prescrevendoData = {
         }
     },
     "Dermatologia": {
-         "Alergia Leve/Moderada": {
+         "Alergia Leve a Moderada": {
             content: `
                 <h3 class="text-2xl font-bold mb-4 text-white">Opções de Tratamento</h3>
                 <p class="mb-2"><strong>Processo Alérgico Leve (1ª escolha não sedantes):</strong></p>
@@ -1771,7 +1771,7 @@ const prescrevendoData = {
         }
     },
     "Neurologia": {
-      "Crise Convulsiva / Estado de Mal Epiléptico": {
+      "Crise Convulsiva e Estado de Mal Epiléptico": {
           content: `
               <h3 class="text-2xl font-bold mb-4 text-white">Manejo da Crise Aguda</h3>
               <p class="mb-2"><strong>1ª Linha (Benzodiazepínicos):</strong></p>
