@@ -19,11 +19,18 @@ const prescrevendoData = {
             <li><strong>DOR FORTE:</strong> Analgésico e/ou AINE + Opioide Forte</li>
           </ul>
           <h4 class="text-xl font-semibold mb-2 text-white">Exemplos de Medicamentos por Classe</h4>
-          <table>
-            <thead><tr><th>Analgésico</th><th>AINE</th><th>Opioide Fraco</th><th>Opioide Forte</th></tr></thead>
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr>
+                <th class="p-2 border border-zinc-600">Analgésico</th>
+                <th class="p-2 border border-zinc-600">AINE</th>
+                <th class="p-2 border border-zinc-600">Opioide Fraco</th>
+                <th class="p-2 border border-zinc-600">Opioide Forte</th>
+              </tr>
+            </thead>
             <tbody>
-              <tr><td>Dipirona</td><td>Diclofenaco</td><td>Tramadol</td><td>Morfina</td></tr>
-              <tr><td>Paracetamol</td><td>Ibuprofeno</td><td>Codeína</td><td></td></tr>
+              <tr><td class="p-2 border border-zinc-600">Dipirona</td><td class="p-2 border border-zinc-600">Diclofenaco</td><td class="p-2 border border-zinc-600">Tramadol</td><td class="p-2 border border-zinc-600">Morfina</td></tr>
+              <tr><td class="p-2 border border-zinc-600">Paracetamol</td><td class="p-2 border border-zinc-600">Ibuprofeno</td><td class="p-2 border border-zinc-600">Codeína</td><td class="p-2 border border-zinc-600"></td></tr>
             </tbody>
           </table>
         `,
@@ -137,7 +144,7 @@ const prescrevendoData = {
             </ul>
             <p class="mb-2"><strong>Controle de Frequência Cardíaca:</strong></p>
             <ul class="list-disc pl-5 mb-4">
-              <li><strong>Betabloqueadores:</strong> Metoprolol 5mg/5ml - Fazer 1 ampola EV em 2 min; pode ser repetida a cada 5 min, até a dose máxima de 20 mg (4 ampolas).</li>
+              <li><strong>Betabloqueadores:</strong> Metoprolol 5mg/5ml - Fazer 1 ampola EV em 2 min; pode ser repetida a cada 5 min, até a dose máxima de 15 mg (3 ampolas).</li>
               <li><strong>Bloqueadores de Canal de Cálcio:</strong> Verapamil 5mg/2ml - Fazer 1-2 ampolas EV em 2-5 min; pode ser repetida após 30 min, até a dose máxima de 20 mg (4 ampolas).</li>
               <li><strong>Digitais:</strong> Deslanosídeo 0,4mg/2ml - Fazer 1 a 2 ampolas EV lentamente em 24h.</li>
             </ul>
@@ -406,7 +413,6 @@ const prescrevendoData = {
             ]
         }
     },
-    // INICIO DAS NOVAS ESPECIALIDADES
     "Gastroenterologia": {
         "Cólica Abdominal": {
             content: `
@@ -1411,13 +1417,19 @@ const prescrevendoData = {
               <h3 class="text-2xl font-bold mb-4 text-white">Manejo da Taquiarritmia Instável</h3>
               <p class="mb-4"><strong>Sinais de instabilidade:</strong> confusão, hipotensão, precordialgia, dispneia.</p>
               <p class="mb-2">A conduta é <strong>Cardioversão Elétrica Sincronizada</strong> imediata com o paciente sedado. A carga varia conforme o ritmo:</p>
-              <table>
-                  <thead><tr><th>Ritmo</th><th>Carga (Bifásico)</th><th>Modo</th></tr></thead>
+              <table class="w-full text-left border-collapse">
+                  <thead>
+                    <tr>
+                      <th class="p-2 border border-zinc-600">Ritmo</th>
+                      <th class="p-2 border border-zinc-600">Carga (Bifásico)</th>
+                      <th class="p-2 border border-zinc-600">Modo</th>
+                    </tr>
+                  </thead>
                   <tbody>
-                      <tr><td>QRS Estreito e Regular</td><td>50-100 J</td><td>Cardioversão</td></tr>
-                      <tr><td>QRS Estreito e Irregular</td><td>120-200 J</td><td>Cardioversão</td></tr>
-                      <tr><td>QRS Largo e Regular</td><td>100 J</td><td>Cardioversão</td></tr>
-                      <tr><td>QRS Largo e Irregular (TV Polimórfica)</td><td>200 J</td><td><strong>Desfibrilação</strong></td></tr>
+                      <tr><td class="p-2 border border-zinc-600">QRS Estreito e Regular</td><td class="p-2 border border-zinc-600">50-100 J</td><td class="p-2 border border-zinc-600">Cardioversão</td></tr>
+                      <tr><td class="p-2 border border-zinc-600">QRS Estreito e Irregular</td><td class="p-2 border border-zinc-600">120-200 J</td><td class="p-2 border border-zinc-600">Cardioversão</td></tr>
+                      <tr><td class="p-2 border border-zinc-600">QRS Largo e Regular</td><td class="p-2 border border-zinc-600">100 J</td><td class="p-2 border border-zinc-600">Cardioversão</td></tr>
+                      <tr><td class="p-2 border border-zinc-600">QRS Largo e Irregular (TV Polimórfica)</td><td class="p-2 border border-zinc-600">200 J</td><td class="p-2 border border-zinc-600"><strong>Desfibrilação</strong></td></tr>
                   </tbody>
               </table>
               <p class="mt-4"><strong>Sedação Pré-procedimento:</strong> Utilizar Fentanil + Midazolam ou Fentanil + Propofol.</p>
@@ -1460,13 +1472,19 @@ const prescrevendoData = {
             content: `
                 <h3 class="text-2xl font-bold mb-4 text-white">Manejo dos Anti-Hipertensivos</h3>
                 <p class="mb-4">Objetivo geral: reduzir a PAM em 10-20% na primeira hora. O manejo específico varia conforme a condição clínica.</p>
-                <table>
-                    <thead><tr><th>Condição Clínica</th><th>Fármaco de Escolha</th><th>Meta de Tratamento</th></tr></thead>
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                      <tr>
+                        <th class="p-2 border border-zinc-600">Condição Clínica</th>
+                        <th class="p-2 border border-zinc-600">Fármaco de Escolha</th>
+                        <th class="p-2 border border-zinc-600">Meta de Tratamento</th>
+                      </tr>
+                    </thead>
                     <tbody>
-                        <tr><td>Encefalopatia Hipertensiva</td><td>Nitroprussiato</td><td>Redução da PAM até 25% em 2-3h</td></tr>
-                        <tr><td>AVC Hemorrágico</td><td>Nitroprussiato</td><td>Redução da PAS para 140 mmHg na primeira hora (se PAS 150-220)</td></tr>
-                        <tr><td>Dissecção Aguda de Aorta</td><td>Esmolol + Nitroprussiato</td><td>FC<60bpm + PAS 100-120 mmHg em 20 min</td></tr>
-                        <tr><td>Eclampsia</td><td>Hidralazina</td><td>PAD ≤ 90-100 mmHg</td></tr>
+                        <tr><td class="p-2 border border-zinc-600">Encefalopatia Hipertensiva</td><td class="p-2 border border-zinc-600">Nitroprussiato</td><td class="p-2 border border-zinc-600">Redução da PAM até 25% em 2-3h</td></tr>
+                        <tr><td class="p-2 border border-zinc-600">AVC Hemorrágico</td><td class="p-2 border border-zinc-600">Nitroprussiato</td><td class="p-2 border border-zinc-600">Redução da PAS para 140 mmHg na primeira hora (se PAS 150-220)</td></tr>
+                        <tr><td class="p-2 border border-zinc-600">Dissecção Aguda de Aorta</td><td class="p-2 border border-zinc-600">Esmolol + Nitroprussiato</td><td class="p-2 border border-zinc-600">FC<60bpm + PAS 100-120 mmHg em 20 min</td></tr>
+                        <tr><td class="p-2 border border-zinc-600">Eclampsia</td><td class="p-2 border border-zinc-600">Hidralazina</td><td class="p-2 border border-zinc-600">PAD ≤ 90-100 mmHg</td></tr>
                     </tbody>
                 </table>
             `,
@@ -1732,7 +1750,6 @@ const prescrevendoData = {
             ]
         }
     },
-    // INICIO DAS NOVAS ESPECIALIDADES VERMELHAS
     "Dermatologia": {
         "Anafilaxia": {
              content: `
