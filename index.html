@@ -33,28 +33,31 @@
 
         // Função para buscar a configuração do Firebase do nosso servidor seguro.
         async function getFirebaseConfig() {
-            try {
-                // Em desenvolvimento, tenta usar a variável global.
-                if (typeof __firebase_config !== 'undefined') {
-                    console.warn("Usando fallback de configuração do Firebase do ambiente de desenvolvimento.");
-                    return JSON.parse(__firebase_config);
-                }
-                
-                // Em produção, busca do endpoint seguro.
-                const response = await fetch('/api/config');
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`Erro ao buscar configuração do servidor: ${response.status} ${response.statusText} - ${errorText}`);
-                }
-                return await response.json();
-            } catch (error) {
-                console.error("Falha crítica ao obter configuração do Firebase:", error);
-                throw error;
+            // Prioriza a variável de ambiente de desenvolvimento se ela existir
+            if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+                console.log("Configuração do Firebase encontrada no ambiente de desenvolvimento.");
+                return JSON.parse(__firebase_config);
             }
+            
+            console.log("Ambiente de desenvolvimento não detectado. Buscando configuração do servidor Netlify em '/api/config'...");
+            const response = await fetch('/api/config');
+            console.log("Resposta do servidor:", response);
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`A chamada para /api/config falhou. Status: ${response.status}. Resposta: ${errorText}`);
+            }
+            
+            const config = await response.json();
+            console.log("Configuração do Firebase recebida do servidor com sucesso.");
+            return config;
         }
 
         // Função para inicializar o Firebase.
         async function initializeFirebase(firebaseConfig) {
+            if (!firebaseConfig || !firebaseConfig.apiKey) {
+                throw new Error("O objeto de configuração do Firebase recebido é inválido ou está vazio.");
+            }
             return new Promise((resolve, reject) => {
                 try {
                     const app = initializeApp(firebaseConfig);
@@ -78,7 +81,6 @@
                             }
                         }
                     });
-
                 } catch (initError) {
                     console.error("Não foi possível inicializar o Firebase:", initError);
                     reject(initError);
@@ -91,7 +93,6 @@
         // =================================================================================
         
         window.addEventListener('load', async () => {
-             // Registo do Service Worker
             if ('serviceWorker' in navigator) {
                 try {
                     await navigator.serviceWorker.register('/sw.js');
@@ -102,11 +103,9 @@
             }
 
             try {
-                // 1. Busca a configuração do servidor
                 const firebaseConfig = await getFirebaseConfig();
-                // 2. Inicializa o Firebase com a configuração recebida
                 await initializeFirebase(firebaseConfig);
-                // 3. Inicia o aplicativo
+                console.log("Firebase inicializado. A iniciar o aplicativo principal...");
                 await mainApp();
             } catch (error) {
                 console.error("Falha ao iniciar o app:", error);
@@ -115,7 +114,6 @@
         });
 
         async function mainApp() {
-            // --- Elementos do DOM (Interface) ---
             const sidebar = document.getElementById('sidebar');
             const mainContent = document.getElementById('main-content');
             const menuToggle = document.getElementById('menu-toggle');
@@ -135,15 +133,13 @@
             const saveModuleBtn = document.getElementById('save-module-btn');
             const migrationStatus = document.getElementById('migration-status');
 
-            // --- Estado da Aplicação ---
             let currentFicha = 'verde';
             let currentSpecialty = null;
-            let currentCondition = null; // Armazena o objeto da condição {id, ...data}
+            let currentCondition = null;
             let isSidebarOpen = false;
             const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
             const textModel = 'gemini-2.5-flash-preview-05-20';
 
-            // --- Migração da Base de Dados para o Firestore ---
             async function migrateDatabaseToFirestore() {
                 const migrationKey = `db_migrated_${appId}_v3`;
                 const migrationDone = await getDoc(doc(db, `artifacts/${appId}/public/data/migrations`, migrationKey));
@@ -191,7 +187,6 @@
                 }
             }
             
-            // --- Funções de Leitura/Escrita no Firestore ---
             async function getSpecialties(ficha) {
                 if (!db) return [];
                 const prescriptionsCol = collection(db, `artifacts/${appId}/public/data/prescriptions`);
@@ -235,7 +230,6 @@
                 return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } : null;
             }
 
-            // --- Funções da API Gemini e Cache na Nuvem ---
             function showGeminiModal(title) {
                 geminiModalTitle.innerHTML = `<span class="mr-2 text-xl">✨</span> ${title}`;
                 geminiResult.innerHTML = '';
@@ -312,7 +306,7 @@
             }
            
             async function callGeminiAPI(prompt, systemInstruction, useGrounding = false, forceNew = false) {
-                const cacheKey = getCacheKey(systemInstruction.substring(0, 10)); // Usa parte do system prompt como chave
+                const cacheKey = getCacheKey(systemInstruction.substring(0, 10));
                 if (!forceNew) {
                     const cachedData = await getFromCache(cacheKey);
                     if (cachedData) {
@@ -354,7 +348,6 @@
                 }
             }
 
-            // --- Funções de Renderização da Interface ---
             function renderConditionDetails(conditionDoc) {
                 currentSpecialty = conditionDoc.specialty;
                 currentCondition = conditionDoc;
@@ -521,7 +514,7 @@
                             ${results.map(condition => `
                                 <div class="condition-card bg-zinc-700/50 hover:bg-zinc-700 p-4 rounded-lg cursor-pointer transition-all duration-200 border border-zinc-600 hover:border-emerald-500" data-doc-id="${condition.id}">
                                     <h3 class="font-semibold text-lg text-white">${condition.condition}</h3>
-                                    <p class="text-sm text-gray-400">${condition.specialty} (${condition.ficha})</p>
+                                    <p class="text-sm text-gray-400">${condition.specialty} (${condition.ficha || ''})</p>
                                 </div>
                             `).join('')}
                         </div>
@@ -559,21 +552,21 @@
                 const lastViewJSON = localStorage.getItem('lastView');
                 if (lastViewJSON) {
                     const lastView = JSON.parse(lastViewJSON);
-                    switchFicha(lastView.ficha, false);
+                    switchFicha(lastView.ficha || 'verde', false);
 
                     if (lastView.docId) {
                         const conditionDoc = await getConditionByDocId(lastView.docId);
                         if (conditionDoc) {
-                             await renderSpecialties(lastView.ficha);
+                             await renderSpecialties(lastView.ficha || 'verde');
                              renderConditionDetails(conditionDoc);
                         } else {
-                             renderSpecialties(lastView.ficha);
+                             renderSpecialties(lastView.ficha || 'verde');
                         }
                     } else if (lastView.specialty) {
-                        await renderSpecialties(lastView.ficha);
+                        await renderSpecialties(lastView.ficha || 'verde');
                         renderConditions(lastView.specialty, lastView.isCustom);
                     } else {
-                        renderSpecialties(lastView.ficha);
+                        renderSpecialties(lastView.ficha || 'verde');
                     }
                 } else {
                     switchFicha('verde');
@@ -609,7 +602,7 @@
                         alert("Módulo salvo com sucesso!");
                         document.getElementById('module-form').reset();
                         addModuleModal.classList.add('hidden');
-                        await renderSpecialties(currentFicha); // Recarrega para mostrar o novo módulo
+                        await renderSpecialties(currentFicha);
                     } catch (error) {
                         console.error("Erro ao salvar módulo:", error);
                         alert("Ocorreu um erro ao salvar o módulo.");
@@ -620,7 +613,6 @@
                 });
             }
 
-            // --- Carregamento Inicial ---
             await migrateDatabaseToFirestore();
             await loadLastView(); 
             setupCustomModules();
@@ -743,3 +735,4 @@
 
 </body>
 </html>
+
