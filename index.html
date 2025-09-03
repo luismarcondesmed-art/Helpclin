@@ -24,28 +24,28 @@
     <script type="module">
         // Importa as bibliotecas do Firebase
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, getDoc, setDoc, collection, addDoc, serverTimestamp, writeBatch, query, where, getDocs, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
-        // Variáveis globais da aplicação
+        // =================================================================================
+        // Configuração do Firebase
+        // =================================================================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyCvqp5HYUMnogWmwT0O1LFLOMsfqj9P83s",
+            authDomain: "med-heklp.firebaseapp.com",
+            projectId: "med-heklp",
+            storageBucket: "med-heklp.firebasestorage.app",
+            messagingSenderId: "675054342845",
+            appId: "1:675054342845:web:91e53e21060a087123ddd4",
+            measurementId: "G-BLWYTWFFTZ"
+        };
+        // =================================================================================
+        
         let db, auth;
         let isFirebaseConnected = false;
 
-        // Função para obter a configuração do Firebase a partir da função segura no Netlify
-        async function getFirebaseConfigFromServer() {
-            console.log("Passo 2: A obter a configuração do Firebase a partir de /api/config...");
-            const response = await fetch('/api/config');
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`Falha ao obter configuração do servidor. Status: ${response.status}. Detalhes: ${errorText}`);
-            }
-            const config = await response.json();
-            if(!config.apiKey) throw new Error("A configuração recebida do servidor é inválida.");
-            return config;
-        }
-
-        // Função para inicializar o Firebase
         async function initializeFirebase(config) {
+            console.log("Passo 2: A tentar inicializar o Firebase...");
             return new Promise((resolve, reject) => {
                 try {
                     const app = initializeApp(config);
@@ -58,11 +58,7 @@
                              resolve();
                         } else {
                             try {
-                                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                                    await signInWithCustomToken(auth, __initial_auth_token);
-                                } else {
-                                    await signInAnonymously(auth);
-                                }
+                                await signInAnonymously(auth);
                             } catch (authError) {
                                 reject(authError);
                             }
@@ -74,7 +70,6 @@
             });
         }
         
-        // Evento que inicia a aplicação quando a página carrega
         window.addEventListener('load', async () => {
             console.log("Passo 1: A página foi carregada. A iniciar o aplicativo.");
             if ('serviceWorker' in navigator) {
@@ -87,21 +82,10 @@
             }
 
             try {
-                let finalFirebaseConfig;
-                // Tenta obter a configuração da variável de ambiente de desenvolvimento primeiro
-                if (typeof __firebase_config !== 'undefined' && __firebase_config) {
-                    console.log("LOG: A usar a configuração do Firebase do ambiente de desenvolvimento.");
-                    finalFirebaseConfig = JSON.parse(__firebase_config);
-                } else {
-                    // Se não estiver em desenvolvimento, obtém do servidor Netlify
-                    finalFirebaseConfig = await getFirebaseConfigFromServer();
-                }
-
-                await initializeFirebase(finalFirebaseConfig);
+                await initializeFirebase(firebaseConfig);
                 isFirebaseConnected = true;
                 console.log("SUCESSO: Firebase inicializado. A iniciar o aplicativo principal em modo online.");
             } catch (error) {
-                // Se a inicialização do Firebase falhar, ativa o modo de fallback
                 console.warn("AVISO: Falha ao iniciar o Firebase. A ativar o modo de fallback com dados locais.", error);
                 isFirebaseConnected = false;
                 const errorDiv = document.getElementById('error-banner');
@@ -109,11 +93,9 @@
                 errorDiv.classList.remove('hidden');
             }
             
-            // Inicia a aplicação principal, seja qual for o modo
             await mainApp();
         });
 
-        // Função principal que contém toda a lógica da aplicação
         async function mainApp() {
             console.log(`Passo 4: A iniciar a lógica principal do aplicativo (Modo Online: ${isFirebaseConnected}).`);
             const sidebar = document.getElementById('sidebar');
@@ -139,12 +121,11 @@
             let currentSpecialty = null;
             let currentCondition = null;
             let isSidebarOpen = false;
-            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+            const appId = "helpclin-app";
             const textModel = 'gemini-2.5-flash-preview-05-20';
 
-            // --- Lógica de Fallback ---
             if (!isFirebaseConnected) {
-                addModuleBtn.style.display = 'none'; // Esconde o botão de adicionar módulo
+                addModuleBtn.style.display = 'none';
             }
 
             async function migrateDatabaseToFirestore() {
@@ -208,7 +189,6 @@
                     snapshot.forEach(doc => specialties.add(doc.data().specialty));
                     return Array.from(specialties).sort();
                 } else {
-                    // Fallback: Usa os dados do ficheiro database.js
                     return Object.keys(prescrevendoData[ficha] || {}).sort();
                 }
             }
@@ -220,10 +200,9 @@
                      const snapshot = await getDocs(q);
                      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                  } else {
-                    // Fallback: Usa os dados do ficheiro database.js
                     const conditionsData = prescrevendoData[ficha]?.[specialty] || {};
                     return Object.keys(conditionsData).map(conditionKey => ({
-                        id: `${ficha}-${specialty}-${conditionKey}`, // ID Falso para uso local
+                        id: `${ficha}-${specialty}-${conditionKey}`,
                         condition: conditionKey,
                         ...conditionsData[conditionKey]
                     })).sort((a,b) => a.condition.localeCompare(b.condition));
@@ -231,7 +210,7 @@
             }
             
             async function getCustomSpecialties() {
-                if (!isFirebaseConnected) return []; // Módulos personalizados só funcionam online
+                if (!isFirebaseConnected) return [];
                 const prescriptionsCol = collection(db, `artifacts/${appId}/public/data/prescriptions`);
                 const q = query(prescriptionsCol, where("isCustom", "==", true));
                 const snapshot = await getDocs(q);
@@ -241,7 +220,7 @@
             }
 
             async function getCustomConditions(specialty) {
-                if (!isFirebaseConnected) return []; // Módulos personalizados só funcionam online
+                if (!isFirebaseConnected) return [];
                 const prescriptionsCol = collection(db, `artifacts/${appId}/public/data/prescriptions`);
                 const q = query(prescriptionsCol, where("isCustom", "==", true), where("specialty", "==", specialty), orderBy("condition"));
                 const snapshot = await getDocs(q);
@@ -254,15 +233,14 @@
                     const docSnap = await getDoc(docRef);
                     return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } : null;
                 } else {
-                    // Fallback: Procura a condição no objeto local (isto é simplificado)
                     const [ficha, specialty, conditionKey] = docId.split('-');
                     if (prescrevendoData[ficha]?.[specialty]?.[conditionKey]) {
-                        return { id: docId, condition: conditionKey, ficha, specialty, ...prescrevendoData[ficha][specialty][conditionKey] };
+                        return { id: docId, condition: conditionKey, ...prescrevendoData[ficha][specialty][conditionKey] };
                     }
                     return null;
                 }
             }
-            
+
             function showGeminiModal(title) {
                 geminiModalTitle.innerHTML = `<span class="mr-2 text-xl">✨</span> ${title}`;
                 geminiResult.innerHTML = '';
@@ -324,7 +302,7 @@
             }
 
             async function callProxyAPI(endpoint, bodyPayload) {
-                 const proxyUrl = `/api/${endpoint}`; 
+                 const proxyUrl = `/.netlify/functions/${endpoint}`; 
                  try { 
                     const response = await fetch(proxyUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(bodyPayload) }); 
                     if (!response.ok) { 
@@ -389,7 +367,7 @@
             function renderConditionDetails(conditionDoc) {
                 currentSpecialty = conditionDoc.specialty;
                 currentCondition = conditionDoc;
-                localStorage.setItem('lastView', JSON.stringify({ docId: conditionDoc.id, ficha: conditionDoc.ficha, isCustom: conditionDoc.isCustom }));
+                localStorage.setItem('lastView', JSON.stringify({ docId: conditionDoc.id, ficha: currentFicha, isCustom: conditionDoc.isCustom }));
                 
                 const allPrescriptions = conditionDoc.prescriptions || [];
                 const isCustom = conditionDoc.isCustom;
@@ -410,7 +388,7 @@
                      prescriptionsHTML = '<p class="text-gray-400">Nenhuma prescrição específica listada.</p>';
                 }
 
-                const geminiFeaturesHTML = (isCustom || !isFirebaseConnected) ? '' : `
+                const geminiFeaturesHTML = isCustom ? '' : `
                     <div class="mt-10 pt-6 border-t border-zinc-700">
                         <h3 class="text-xl font-bold text-white mb-4 flex items-center">
                             <span class="mr-2 text-2xl">✨</span> Funções com Gemini
@@ -453,7 +431,7 @@
                     </div>
                 `;
                 
-                if (!isCustom && isFirebaseConnected) {
+                if (!isCustom) {
                     document.getElementById('summarize-btn').addEventListener('click', () => {
                         showGeminiModal(`Resumo sobre ${conditionDoc.condition}`);
                         const prompt = `Forneça um resumo conciso e atualizado sobre a condição médica "${conditionDoc.condition}", abordando etiologia, apresentação clínica principal, diagnóstico diferencial e manejo geral. A resposta deve ser em português do Brasil e formatada em markdown.`;
@@ -542,33 +520,13 @@
                     renderSpecialties(currentFicha);
                     return;
                 }
+                const prescriptionsCol = collection(db, `artifacts/${appId}/public/data/prescriptions`);
+                const snapshot = await getDocs(prescriptionsCol);
                 
-                let results = [];
                 const lowerCaseQuery = query.toLowerCase();
-
-                if (isFirebaseConnected) {
-                    const prescriptionsCol = collection(db, `artifacts/${appId}/public/data/prescriptions`);
-                    const snapshot = await getDocs(prescriptionsCol);
-                    results = snapshot.docs
-                        .map(doc => ({ id: doc.id, ...doc.data() }))
-                        .filter(doc => doc.condition.toLowerCase().includes(lowerCaseQuery) || doc.specialty.toLowerCase().includes(lowerCaseQuery));
-                } else {
-                     for (const ficha in prescrevendoData) {
-                        for (const specialty in prescrevendoData[ficha]) {
-                            for (const condition in prescrevendoData[ficha][specialty]) {
-                                 if (condition.toLowerCase().includes(lowerCaseQuery) || specialty.toLowerCase().includes(lowerCaseQuery)) {
-                                    results.push({
-                                        id: `${ficha}-${specialty}-${condition}`,
-                                        condition,
-                                        specialty,
-                                        ficha,
-                                        isCustom: false
-                                    });
-                                }
-                            }
-                        }
-                    }
-                }
+                const results = snapshot.docs
+                    .map(doc => ({ id: doc.id, ...doc.data() }))
+                    .filter(doc => doc.condition.toLowerCase().includes(lowerCaseQuery) || doc.specialty.toLowerCase().includes(lowerCaseQuery));
 
                 if (results.length > 0) {
                     contentDisplay.innerHTML = `
@@ -615,22 +573,21 @@
                 const lastViewJSON = localStorage.getItem('lastView');
                 if (lastViewJSON) {
                     const lastView = JSON.parse(lastViewJSON);
-                    const fichaToLoad = lastView.ficha || 'verde';
-                    switchFicha(fichaToLoad, false);
+                    switchFicha(lastView.ficha || 'verde', false);
 
                     if (lastView.docId) {
                         const conditionDoc = await getConditionByDocId(lastView.docId);
                         if (conditionDoc) {
-                             await renderSpecialties(fichaToLoad);
+                             await renderSpecialties(lastView.ficha || 'verde');
                              renderConditionDetails(conditionDoc);
                         } else {
-                             renderSpecialties(fichaToLoad);
+                             renderSpecialties(lastView.ficha || 'verde');
                         }
                     } else if (lastView.specialty) {
-                        await renderSpecialties(fichaToLoad);
+                        await renderSpecialties(lastView.ficha || 'verde');
                         renderConditions(lastView.specialty, lastView.isCustom);
                     } else {
-                        renderSpecialties(fichaToLoad);
+                        renderSpecialties(lastView.ficha || 'verde');
                     }
                 } else {
                     switchFicha('verde');
@@ -638,7 +595,7 @@
             }
 
             function setupCustomModules() {
-                if(!isFirebaseConnected) return; // Só ativa se estiver online
+                if(!isFirebaseConnected) return;
                 addModuleBtn.addEventListener('click', () => addModuleModal.classList.remove('hidden'));
                 closeModuleModalBtn.addEventListener('click', () => addModuleModal.classList.add('hidden'));
 
