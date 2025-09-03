@@ -1,0 +1,30 @@
+exports.handler = async function(event, context) {
+  // Verifica se a variável de ambiente está definida no Netlify
+  if (!process.env.FIREBASE_CONFIG) {
+    console.error("ERRO na função 'config': A variável de ambiente FIREBASE_CONFIG não foi encontrada.");
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: "A variável de ambiente FIREBASE_CONFIG não está definida no servidor." })
+    };
+  }
+
+  try {
+    // Tenta analisar o JSON para garantir que é válido antes de enviar
+    const config = JSON.parse(process.env.FIREBASE_CONFIG);
+    
+    // Envia a configuração como uma resposta JSON
+    return {
+      statusCode: 200,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(config)
+    };
+  } catch (error) {
+    // Se a análise falhar, o valor na variável de ambiente está malformado
+    console.error("ERRO na função 'config': O valor da variável FIREBASE_CONFIG não é um JSON válido.", error);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: "O valor da variável FIREBASE_CONFIG no servidor não é um JSON válido." })
+    };
+  }
+};
+
