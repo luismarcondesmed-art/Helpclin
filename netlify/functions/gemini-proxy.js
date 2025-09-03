@@ -1,28 +1,32 @@
-// Esta função age como um intermediário seguro entre o seu site e a API do Gemini.
-// Ela é executada em um servidor da Netlify, não no navegador do usuário.
+// Esta é uma versão atualizada com mais logs para facilitar a depuração.
 
 exports.handler = async function(event) {
-  // Somente permite requisições do tipo POST
+  console.log("Iniciando a função gemini-proxy...");
+
   if (event.httpMethod !== 'POST') {
+    console.log("Método não permitido:", event.httpMethod);
     return { statusCode: 405, body: 'Method Not Allowed' };
   }
 
   try {
     const { prompt, systemInstruction, useGrounding, model } = JSON.parse(event.body);
-    
-    // Pega a chave de API de forma segura das variáveis de ambiente do Netlify.
-    // A chave NUNCA é exposta ao público.
+    console.log("Recebido - Modelo:", model, "Prompt:", prompt ? prompt.substring(0, 50) + '...' : 'N/A');
+
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
-      return { statusCode: 500, body: JSON.stringify({ error: 'API key not configured.' }) };
+      console.error("ERRO: Chave de API não configurada nas variáveis de ambiente do Netlify.");
+      return { statusCode: 500, body: JSON.stringify({ error: 'Chave de API do servidor não configurada.' }) };
     }
+    console.log("Chave de API encontrada.");
     
     if (!model || !prompt) {
-        return { statusCode: 400, body: JSON.stringify({ error: 'Model and prompt are required.' }) };
+        console.error("ERRO: Modelo ou prompt ausentes no corpo da requisição.");
+        return { statusCode: 400, body: JSON.stringify({ error: 'Modelo e prompt são obrigatórios.' }) };
     }
 
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    console.log("Chamando a URL da API do Gemini:", apiUrl.replace(apiKey, '********')); // Log sem a chave
 
     const payload = {
         contents: [{ parts: [{ text: prompt }] }],
@@ -36,14 +40,12 @@ exports.handler = async function(event) {
         payload.systemInstruction = { parts: [{ text: systemInstruction }] };
     }
     
-    // Adiciona configuração de áudio para o modelo TTS
     if (model === 'gemini-2.5-flash-preview-tts') {
         payload.generationConfig = {
             responseModalities: ["AUDIO"],
         };
     }
 
-    // Faz a chamada para a API do Google a partir do servidor
     const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
@@ -54,13 +56,13 @@ exports.handler = async function(event) {
 
     if (!response.ok) {
         const errorBody = await response.text();
-        console.error('Gemini API Error:', errorBody);
-        return { statusCode: response.status, body: JSON.stringify({ error: 'Failed to fetch from Gemini API.' }) };
+        console.error("Erro ao chamar a API do Gemini:", response.status, errorBody);
+        return { statusCode: response.status, body: JSON.stringify({ error: `Falha ao buscar da API do Gemini. Status: ${response.status}`, details: errorBody }) };
     }
 
     const data = await response.json();
+    console.log("Resposta da API do Gemini recebida com sucesso.");
 
-    // Retorna a resposta da API do Google para o seu site
     return {
         statusCode: 200,
         headers: {
@@ -70,10 +72,11 @@ exports.handler = async function(event) {
     };
 
   } catch (error) {
-    console.error('Proxy Error:', error);
+    console.error('Erro geral no proxy:', error);
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: 'Internal Server Error' })
+      body: JSON.stringify({ error: 'Erro Interno do Servidor', details: error.message })
     };
   }
 };
+
