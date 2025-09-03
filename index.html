@@ -280,9 +280,8 @@
             geminiModal.classList.add('hidden');
         }
         
-        // ATUALIZADO: Função para chamar o proxy seguro no Netlify
+        // ATUALIZADO: Função para chamar o proxy seguro no Netlify com melhor tratamento de erros
         async function callProxyAPI(bodyPayload, retries = 3, delay = 1000) {
-            // A URL agora aponta para a nossa função no Netlify
             const proxyUrl = '/api/gemini-proxy';
             
             try {
@@ -297,14 +296,17 @@
                          await new Promise(res => setTimeout(res, delay));
                          return callProxyAPI(bodyPayload, retries - 1, delay * 2);
                     }
-                    throw new Error(`Proxy Error: ${response.statusText}`);
+                    // Tenta extrair uma mensagem de erro mais detalhada do corpo da resposta do proxy
+                    const errorData = await response.json().catch(() => ({ error: "Erro desconhecido no servidor.", details: "A resposta não pôde ser analisada." }));
+                    throw new Error(errorData.error || `Proxy Error: ${response.statusText}`);
                 }
 
                 return await response.json();
 
             } catch (error) {
-                 console.error("Proxy call failed:", error);
-                 throw error; // Propaga o erro para ser tratado pela função que chamou
+                 console.error("Falha na chamada do Proxy:", error);
+                 // Propaga o erro para ser tratado pela função que o chamou, garantindo que a mensagem de erro seja exibida
+                 throw error;
             }
         }
 
@@ -341,10 +343,16 @@
                         .replace(/(\r\n|\n|\r)/gm, "<br>");
                     geminiResult.innerHTML = `<p>${htmlContent}</p>${sourcesHTML}`;
                 } else {
-                    throw new Error("Resposta inválida da API.");
+                    // Se a API retornar sucesso (200) mas sem conteúdo, exibe uma mensagem específica.
+                    const rejectionReason = result.candidates?.[0]?.finishReason;
+                    if (rejectionReason === 'SAFETY') {
+                         geminiResult.innerHTML = `<p class="text-yellow-400">A resposta foi bloqueada por políticas de segurança. Tente reformular sua pergunta.</p>`;
+                    } else {
+                         throw new Error("Resposta inválida da API do Gemini.");
+                    }
                 }
             } catch (error) {
-                geminiResult.innerHTML = `<p class="text-red-400">Ocorreu um erro ao gerar a resposta. Por favor, tente novamente.</p>`;
+                geminiResult.innerHTML = `<p class="text-red-400"><b>Ocorreu um erro:</b> ${error.message}<br><br>Por favor, verifique os logs no Netlify (conforme o guia de depuração) para mais detalhes.</p>`;
             } finally {
                 geminiLoading.classList.add('hidden');
             }
@@ -436,12 +444,12 @@
                          currentAudio = null;
                     };
                 } else {
-                     throw new Error("Audio data not found in response.");
+                     throw new Error("Dados de áudio não encontrados na resposta.");
                 }
 
             } catch (error) {
-                console.error("Gemini TTS proxy call failed:", error);
-                 alert('Erro ao gerar o áudio.');
+                console.error("Falha na chamada TTS do Gemini:", error);
+                 alert(`Erro ao gerar o áudio: ${error.message}`);
             } finally {
                 buttonElement.classList.remove('loading');
             }
