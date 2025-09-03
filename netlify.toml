@@ -1,10 +1,16 @@
-# Este comando diz ao Netlify para executar o nosso script 'build.sh' antes de publicar o site.
+# Define a pasta a ser publicada e a localização das funções de servidor.
 [build]
-  command = "bash build.sh"
   publish = "/"
   functions = "netlify/functions"
 
-# Esta regra direciona os pedidos para a função segura do Gemini.
+# Regra para redirecionar pedidos de '/api/config' para a função de servidor correspondente.
+# Isto cria um atalho amigável e seguro para a nossa função.
+[[redirects]]
+  from = "/api/config"
+  to = "/.netlify/functions/config"
+  status = 200
+
+# Regra para redirecionar pedidos de '/api/gemini' para a função de servidor do Gemini.
 [[redirects]]
   from = "/api/gemini"
   to = "/.netlify/functions/gemini"
