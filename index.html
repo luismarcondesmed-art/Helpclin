@@ -18,79 +18,64 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     
-    <!-- Carrega o banco de dados local para a migração inicial -->
-    <script src="database.js"></script>
-
     <script type="module">
-        // =================================================================================
-        // INICIALIZAÇÃO E CONFIGURAÇÃO DO FIREBASE
-        // =================================================================================
+        // Firebase Imports
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, collection, addDoc, serverTimestamp, writeBatch, query, where, getDocs, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, setDoc, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
+        // --- Global Firebase Instances ---
         let db, auth;
 
-        // Função para inicializar o Firebase. As variáveis __firebase_config e __initial_auth_token 
-        // são fornecidas automaticamente pelo ambiente de desenvolvimento.
+        // --- Firebase Initialization ---
+        // As variáveis __firebase_config e __initial_auth_token serão injetadas pelo ambiente.
+        // Você não precisa preenchê-las manualmente.
         function initializeFirebase() {
-             return new Promise((resolve, reject) => {
-                try {
-                    if (typeof __firebase_config !== 'undefined') {
-                        const firebaseConfig = JSON.parse(__firebase_config);
-                        const app = initializeApp(firebaseConfig);
-                        db = getFirestore(app);
-                        auth = getAuth(app);
-                        
-                        onAuthStateChanged(auth, async (user) => {
-                            if (!user) {
-                                try {
-                                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                                        await signInWithCustomToken(auth, __initial_auth_token);
-                                    } else {
-                                        await signInAnonymously(auth);
-                                    }
-                                    console.log("Firebase Autenticado.");
-                                    resolve();
-                                } catch (error) {
-                                    console.error("Erro na Autenticação Firebase:", error);
-                                    reject(error);
+            try {
+                if (typeof __firebase_config !== 'undefined') {
+                    const firebaseConfig = JSON.parse(__firebase_config);
+                    const app = initializeApp(firebaseConfig);
+                    db = getFirestore(app);
+                    auth = getAuth(app);
+                    
+                    onAuthStateChanged(auth, async (user) => {
+                        if (!user) {
+                            try {
+                                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                                    await signInWithCustomToken(auth, __initial_auth_token);
+                                    console.log("Firebase Authenticated with Custom Token.");
+                                } else {
+                                    await signInAnonymously(auth);
+                                    console.log("Firebase Authenticated Anonymously.");
                                 }
-                            } else {
-                                console.log("Usuário já conectado:", user.uid);
-                                resolve();
+                            } catch (error) {
+                                console.error("Firebase Auth Error:", error);
                             }
-                        });
+                        } else {
+                            console.log("User is already signed in:", user.uid);
+                        }
+                    });
 
-                    } else {
-                        console.warn("Configuração do Firebase não encontrada. As funcionalidades da nuvem serão desativadas.");
-                        reject("Configuração do Firebase não encontrada.");
-                    }
-                } catch (error) {
-                    console.error("Não foi possível inicializar o Firebase:", error);
-                    reject(error);
+                } else {
+                    console.warn("Firebase config not found. Firestore features will be disabled.");
                 }
-            });
+            } catch (error) {
+                console.error("Could not initialize Firebase:", error);
+            }
         }
         
-        // =================================================================================
-        // LÓGICA PRINCIPAL DO APLICATIVO
-        // =================================================================================
+        // --- DOM Elements & State ---
+        // (Colocando o resto do seu script aqui para organização)
+        // ... (o restante do script do seu aplicativo virá aqui)
         
-        // Função que inicia o app após o carregamento da página e do Firebase
-        window.onload = async () => {
-            try {
-                await initializeFirebase();
-                await mainApp();
-            } catch (error) {
-                console.error("Falha ao iniciar o app:", error);
-                document.body.innerHTML = `<div class="text-center p-8 text-red-400">Falha ao inicializar o aplicativo. Verifique a configuração do Firebase e o console para mais detalhes.</div>`;
-            }
+        window.onload = () => {
+             initializeFirebase();
+             // Chame a função principal do seu app aqui
+             mainApp();
         };
 
-        // Função principal que contém toda a lógica da aplicação
-        async function mainApp() {
-            // --- Elementos do DOM (Interface) ---
+        function mainApp() {
+            // --- DOM Elements ---
             const sidebar = document.getElementById('sidebar');
             const mainContent = document.getElementById('main-content');
             const menuToggle = document.getElementById('menu-toggle');
@@ -99,7 +84,7 @@
             const contentDisplay = document.getElementById('content-display');
             const fichaVerdeBtn = document.getElementById('ficha-verde-btn');
             const fichaVermelhaBtn = document.getElementById('ficha-vermelha-btn');
-            const pageTitle = document.getElementById('page-title'); // Assumindo que você tem um h1 ou similar para o título
+            const pageTitle = document.getElementById('page-title');
             const geminiModal = document.getElementById('gemini-modal');
             const geminiModalClose = document.getElementById('gemini-modal-close');
             const geminiModalTitle = document.getElementById('gemini-modal-title');
@@ -109,106 +94,19 @@
             const addModuleModal = document.getElementById('add-module-modal');
             const closeModuleModalBtn = document.getElementById('close-module-modal');
             const saveModuleBtn = document.getElementById('save-module-btn');
-            const migrationStatus = document.getElementById('migration-status');
 
-            // --- Estado da Aplicação ---
+
+            // --- State ---
             let currentFicha = 'verde';
             let currentSpecialty = null;
-            let currentCondition = null; // Armazena o objeto da condição {id, ...data}
+            let currentCondition = null;
             let isSidebarOpen = false;
             const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+
+            // --- Gemini API & Caching Functions ---
             const textModel = 'gemini-2.5-flash-preview-05-20';
 
-            // --- Migração da Base de Dados para o Firestore ---
-            async function migrateDatabaseToFirestore() {
-                if (localStorage.getItem('db_migrated_v2')) {
-                    console.log("Migração da base de dados já foi concluída.");
-                    return;
-                }
-                
-                migrationStatus.classList.remove('hidden');
-                migrationStatus.innerText = 'Inicializando banco de dados na nuvem... Isso pode levar um minuto.';
-                console.log("Iniciando migração da base de dados para o Firestore...");
-
-                try {
-                    const batch = writeBatch(db);
-                    const prescriptionsCol = collection(db, `artifacts/${appId}/public/data/prescriptions`);
-
-                    // Itera sobre a base de dados local (do arquivo database.js)
-                    for (const ficha in prescrevendoData) {
-                        for (const specialty in prescrevendoData[ficha]) {
-                            for (const condition in prescrevendoData[ficha][specialty]) {
-                                const data = prescrevendoData[ficha][specialty][condition];
-                                const docRef = doc(collection(db, `artifacts/${appId}/public/data/prescriptions`)); // ID automático
-                                batch.set(docRef, {
-                                    ficha,
-                                    specialty,
-                                    condition,
-                                    content: data.content,
-                                    prescriptions: data.prescricoes || [],
-                                    isCustom: false,
-                                    createdAt: serverTimestamp()
-                                });
-                            }
-                        }
-                    }
-
-                    await batch.commit(); // Envia todos os dados de uma vez para o Firestore
-                    localStorage.setItem('db_migrated_v2', 'true'); // Marca a migração como concluída
-                    console.log("Migração da base de dados concluída com sucesso!");
-                    migrationStatus.innerText = 'Banco de dados inicializado com sucesso!';
-                    setTimeout(() => migrationStatus.classList.add('hidden'), 3000);
-                } catch (error) {
-                    console.error("Falha na migração da base de dados:", error);
-                    migrationStatus.innerText = 'Falha ao inicializar o banco de dados. Tente recarregar a página.';
-                }
-            }
-            
-            // --- Funções de Leitura/Escrita no Firestore ---
-            async function getSpecialties(ficha) {
-                if (!db) return [];
-                const prescriptionsCol = collection(db, `artifacts/${appId}/public/data/prescriptions`);
-                const q = query(prescriptionsCol, where("ficha", "==", ficha), where("isCustom", "==", false));
-                const snapshot = await getDocs(q);
-                const specialties = new Set();
-                snapshot.forEach(doc => specialties.add(doc.data().specialty));
-                return Array.from(specialties).sort();
-            }
-
-            async function getConditions(ficha, specialty) {
-                 if (!db) return [];
-                 const prescriptionsCol = collection(db, `artifacts/${appId}/public/data/prescriptions`);
-                 const q = query(prescriptionsCol, where("ficha", "==", ficha), where("specialty", "==", specialty), where("isCustom", "==", false), orderBy("condition"));
-                 const snapshot = await getDocs(q);
-                 return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            }
-            
-            async function getCustomSpecialties() {
-                if (!db) return [];
-                const prescriptionsCol = collection(db, `artifacts/${appId}/public/data/prescriptions`);
-                const q = query(prescriptionsCol, where("isCustom", "==", true));
-                const snapshot = await getDocs(q);
-                const specialties = new Set();
-                snapshot.forEach(doc => specialties.add(doc.data().specialty));
-                return Array.from(specialties).sort();
-            }
-
-            async function getCustomConditions(specialty) {
-                if (!db) return [];
-                const prescriptionsCol = collection(db, `artifacts/${appId}/public/data/prescriptions`);
-                const q = query(prescriptionsCol, where("isCustom", "==", true), where("specialty", "==", specialty), orderBy("condition"));
-                const snapshot = await getDocs(q);
-                return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            }
-
-            async function getConditionByDocId(docId) {
-                if (!db) return null;
-                const docRef = doc(db, `artifacts/${appId}/public/data/prescriptions`, docId);
-                const docSnap = await getDoc(docRef);
-                return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } : null;
-            }
-
-            // --- Funções da API Gemini e Cache na Nuvem ---
             function showGeminiModal(title) {
                 geminiModalTitle.innerHTML = `<span class="mr-2 text-xl">✨</span> ${title}`;
                 geminiResult.innerHTML = '';
@@ -221,108 +119,142 @@
             }
             
             async function getCacheKey(type) {
-                if (!currentCondition) return null;
-                // Usa o ID do documento do Firestore, que é único e estável
-                return `geminiCache/${currentCondition.id}/${type}`;
+                if (!currentFicha || !currentSpecialty || !currentCondition) return null;
+                return `geminiCache/${currentFicha}/${currentSpecialty}/${currentCondition}/${type}`;
             }
 
             async function getFromCache(key) {
-                 if (!db || !auth.currentUser) return null;
+                if (!db || !auth.currentUser) {
+                    console.warn("Firestore not available. Using local cache.");
+                    return JSON.parse(localStorage.getItem(key));
+                }
                 try {
                     const docRef = doc(db, `artifacts/${appId}/public/data/geminiCache`, key.replace(/\//g, '_'));
                     const docSnap = await getDoc(docRef);
-                    return docSnap.exists() ? docSnap.data().content : null;
+                    if (docSnap.exists()) {
+                        console.log("Firestore cache hit for key:", key);
+                        return docSnap.data().content;
+                    } else {
+                        console.log("Firestore cache miss for key:", key);
+                        return null;
+                    }
                 } catch (error) {
-                    console.error("Erro ao buscar do cache do Firestore:", error);
+                    console.error("Error getting from Firestore cache:", error);
                     return null;
                 }
             }
 
             async function saveToCache(key, data) {
-                 if (!db || !auth.currentUser) return;
+                 if (!db || !auth.currentUser) {
+                    console.warn("Firestore not available. Saving to local cache.");
+                    localStorage.setItem(key, JSON.stringify(data));
+                    return;
+                }
                  try {
                     const docRef = doc(db, `artifacts/${appId}/public/data/geminiCache`, key.replace(/\//g, '_'));
                     await setDoc(docRef, { content: data, timestamp: serverTimestamp() });
+                    console.log("Saved to Firestore cache with key:", key);
                 } catch (error) {
-                    console.error("Erro ao salvar no cache do Firestore:", error);
+                    console.error("Error saving to Firestore cache:", error);
                 }
             }
 
             function markdownToHtml(text) {
+                // Improved Markdown to HTML conversion
                 let html = text
                     .replace(/^### (.*$)/gim, '<h3 class="text-xl font-semibold text-gray-100 mt-6 mb-2 pb-2 border-b border-gray-700">$1</h3>')
                     .replace(/^## (.*$)/gim, '<h2 class="text-2xl font-bold text-white mt-8 mb-3 pb-2 border-b-2 border-emerald-500">$1</h2>')
                     .replace(/^# (.*$)/gim, '<h1 class="text-3xl font-bold text-white mt-10 mb-4">$1</h1>')
                     .replace(/\*\*(.*?)\*\*/g, '<strong class="text-white">$1</strong>')
                     .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                    .replace(/^- (.*$)/gim, '<li class="ml-2">$1</li>')
-                    .replace(/^\* (.*$)/gim, '<li class="ml-2">$1</li>');
+                    .replace(/^- (.*$)/gim, '<li class="ml-2">$1</li>') // For unordered lists
+                    .replace(/^\* (.*$)/gim, '<li class="ml-2">$1</li>'); // For unordered lists
             
+                // Wrap list items in <ul>
                 html = html.replace(/^(<li>(.|\n)*?<\/li>)/gm, (match) => {
                     return `<ul class="list-disc pl-5 space-y-2 my-4">${match.replace(/<\/li>\n<li>/g, '</li><li>')}</ul>`;
                 });
 
+                // Wrap remaining lines in <p> tags
                 return html.split('\n').map(line => {
                     const trimmedLine = line.trim();
-                    if (trimmedLine === '' || trimmedLine.startsWith('<h') || trimmedLine.startsWith('<ul') || trimmedLine.startsWith('<li>')) return line;
+                    if (trimmedLine === '') return '';
+                    if (trimmedLine.startsWith('<h') || trimmedLine.startsWith('<ul') || trimmedLine.startsWith('<li>')) return line;
                     return `<p class="leading-relaxed mb-4">${line}</p>`;
                 }).join('');
             }
 
             async function callProxyAPI(bodyPayload) {
-                 const proxyUrl = '/api/gemini-proxy'; 
-                 try { 
-                    const response = await fetch(proxyUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(bodyPayload) }); 
-                    if (!response.ok) { 
-                        const errorData = await response.json().catch(() => ({})); 
-                        throw new Error(errorData.error || `Erro ${response.status}: ${response.statusText}`); 
-                    } 
-                    return await response.json(); 
-                 } catch (error) { 
-                    console.error("Falha na chamada do Proxy:", error); 
-                    throw new Error("Erro de comunicação com o servidor. Verifique o console."); 
-                 }
+                const proxyUrl = '/api/gemini-proxy'; // Netlify function URL
+                try {
+                    const response = await fetch(proxyUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(bodyPayload)
+                    });
+                    if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({}));
+                        throw new Error(errorData.error || `Erro ${response.status}: ${response.statusText}`);
+                    }
+                    return await response.json();
+                } catch (error) {
+                    console.error("Proxy call failed:", error);
+                    throw new Error("Erro de comunicação com o servidor. Verifique o console.");
+                }
             }
            
             async function callGeminiAPI(prompt, systemInstruction, useGrounding = false, cacheKey) {
-                const body = { prompt, systemInstruction, useGrounding, model: textModel }; 
-                try { 
-                    const result = await callProxyAPI(body); 
-                    const candidate = result.candidates?.[0]; 
-                    if (candidate?.content?.parts?.[0]?.text) { 
-                        let sourcesHTML = ''; 
-                        if (useGrounding && candidate.groundingMetadata?.groundingAttributions) { 
-                            const sources = candidate.groundingMetadata.groundingAttributions.map(attr => attr.web).filter(web => web?.uri && web?.title); 
-                            if (sources.length > 0) { 
-                                sourcesHTML = '<h4 class="text-md font-semibold mt-8 mb-2 text-gray-400">Fontes:</h4><ul class="list-disc pl-5 text-sm space-y-1">'; 
-                                sources.forEach(source => { sourcesHTML += `<li><a href="${source.uri}" target="_blank" rel="noopener noreferrer" class="text-emerald-400 hover:underline">${source.title}</a></li>`; }); 
-                                sourcesHTML += '</ul>'; 
-                            } 
-                        } 
-                        const rawText = candidate.content.parts[0].text; 
-                        const htmlContent = markdownToHtml(rawText); 
-                        const finalHtml = { content: htmlContent, sources: sourcesHTML }; 
-                        geminiResult.innerHTML = finalHtml.content + finalHtml.sources; 
-                        if (cacheKey) saveToCache(cacheKey, finalHtml); 
-                    } else { 
-                        throw new Error(candidate?.finishReason || "Resposta inválida da API."); 
-                    } 
-                } catch (error) { 
-                    geminiResult.innerHTML = `<p class="text-red-400"><b>Ocorreu um erro:</b> ${error.message}</p>`; 
-                } finally { 
-                    geminiLoading.classList.add('hidden'); 
+                const body = { prompt, systemInstruction, useGrounding, model: textModel };
+                try {
+                    const result = await callProxyAPI(body);
+                    const candidate = result.candidates?.[0];
+
+                    if (candidate?.content?.parts?.[0]?.text) {
+                        let sourcesHTML = '';
+                        if (useGrounding && candidate.groundingMetadata?.groundingAttributions) {
+                            const sources = candidate.groundingMetadata.groundingAttributions
+                                .map(attr => attr.web).filter(web => web?.uri && web?.title);
+                            if (sources.length > 0) {
+                                sourcesHTML = '<h4 class="text-md font-semibold mt-8 mb-2 text-gray-400">Fontes:</h4><ul class="list-disc pl-5 text-sm space-y-1">';
+                                sources.forEach(source => {
+                                    sourcesHTML += `<li><a href="${source.uri}" target="_blank" rel="noopener noreferrer" class="text-emerald-400 hover:underline">${source.title}</a></li>`;
+                                });
+                                sourcesHTML += '</ul>';
+                            }
+                        }
+                        const rawText = candidate.content.parts[0].text;
+                        const htmlContent = markdownToHtml(rawText);
+                        const finalHtml = { content: htmlContent, sources: sourcesHTML };
+                        
+                        geminiResult.innerHTML = finalHtml.content + finalHtml.sources;
+                        if (cacheKey) saveToCache(cacheKey, finalHtml);
+
+                    } else {
+                        throw new Error(candidate?.finishReason || "Resposta inválida da API.");
+                    }
+                } catch (error) {
+                    geminiResult.innerHTML = `<p class="text-red-400"><b>Ocorreu um erro:</b> ${error.message}</p>`;
+                } finally {
+                    geminiLoading.classList.add('hidden');
                 }
             }
 
+            // --- UI Rendering Functions ---
+             function renderConditionDetails(specialtyKey, conditionKey, isCustom = false) {
+                currentSpecialty = specialtyKey;
+                currentCondition = conditionKey;
+                localStorage.setItem('lastView', JSON.stringify({ specialtyKey, conditionKey, ficha: currentFicha, isCustom }));
 
-            // --- Funções de Renderização da Interface ---
-            async function renderConditionDetails(conditionDoc) {
-                currentSpecialty = conditionDoc.specialty;
-                currentCondition = conditionDoc;
-                localStorage.setItem('lastView', JSON.stringify({ docId: conditionDoc.id, ficha: currentFicha }));
+                const conditionData = isCustom 
+                    ? JSON.parse(localStorage.getItem('customModules'))?.[specialtyKey]?.[conditionKey]
+                    : prescrevendoData[currentFicha][specialtyKey][conditionKey];
+
+                if (!conditionData) {
+                    contentDisplay.innerHTML = `<p>Erro: Condição não encontrada.</p>`;
+                    return;
+                }
                 
-                const allPrescriptions = conditionDoc.prescriptions || [];
-                const isCustom = conditionDoc.isCustom;
+                const allPrescriptions = conditionData.prescricoes || [];
                 
                 const geminiFeaturesHTML = isCustom ? '' : `
                     <div class="mt-8">
@@ -338,14 +270,14 @@
 
                 const contentHTML = `
                     <div class="flex-grow overflow-y-auto pr-4">
-                         <button id="back-btn" class="mb-6 text-emerald-400 hover:text-emerald-300 transition-colors">&larr; Voltar para ${conditionDoc.specialty}</button>
-                        <h2 class="text-4xl font-bold mb-1 text-white">${conditionDoc.condition}</h2>
-                        <p class="text-md text-gray-400 mb-6">Especialidade: ${conditionDoc.specialty}</p>
+                         <button id="back-btn" class="mb-6 text-emerald-400 hover:text-emerald-300 transition-colors">&larr; Voltar para ${specialtyKey}</button>
+                        <h2 class="text-4xl font-bold mb-1 text-white">${conditionKey}</h2>
+                        <p class="text-md text-gray-400 mb-6">Especialidade: ${specialtyKey}</p>
                         <div class="prose prose-invert max-w-none text-gray-300">
-                            ${conditionDoc.content}
+                            ${conditionData.content}
                         </div>
                         ${allPrescriptions.map(p => `
-                            <div class="mt-6 p-4 rounded-lg bg-zinc-800 border border-zinc-700">
+                            <div class="mt-6 p-4 rounded-lg bg-gray-800 border border-gray-700">
                                 <h4 class="${currentFicha === 'verde' ? 'text-green-400' : 'text-red-400'} font-bold mb-2">${p.title}</h4>
                                 <ul class="list-disc pl-5 text-gray-300 space-y-1">${p.items.map(i => `<li>${i}</li>`).join('')}</ul>
                             </div>
@@ -354,10 +286,11 @@
                 `;
 
                 const referencesHTML = isCustom ? '' : `
-                     <div class="w-full md:w-1/3 lg:w-1/4 md:pl-6 pt-8 md:pt-0 border-t md:border-t-0 md:border-l border-zinc-700">
+                     <div class="w-full md:w-1/3 lg:w-1/4 md:pl-6 pt-8 md:pt-0 border-t md:border-t-0 md:border-l border-gray-700">
                         <h3 class="text-xl font-semibold mb-4 text-gray-200">Referências</h3>
                         <ul class="space-y-3">
-                            <li><a href="https://www.uptodate.com/contents/search?search=${encodeURIComponent(conditionDoc.condition)}" target="_blank" rel="noopener noreferrer" class="text-emerald-400 hover:underline">Buscar no UpToDate</a></li>
+                            <li><a href="https://www.uptodate.com/contents/search?search=${encodeURIComponent(conditionKey)}" target="_blank" rel="noopener noreferrer" class="text-emerald-400 hover:underline">Buscar no UpToDate</a></li>
+                            <!-- Adicionar mais links aqui se necessário -->
                         </ul>
                          ${geminiFeaturesHTML}
                     </div>
@@ -370,16 +303,19 @@
                     </div>
                 `;
                 
+                // Add event listeners for Gemini buttons
                 if (!isCustom) {
                     const fetchAndDisplaySummary = async (forceRefresh = false) => {
                         const cacheKey = await getCacheKey('summary');
                         if (!forceRefresh) {
                             const cachedData = await getFromCache(cacheKey);
                             if (cachedData) {
-                                showGeminiModal(`Resumo sobre ${conditionDoc.condition} (Salvo)`);
+                                showGeminiModal(`Resumo sobre ${conditionKey} (Salvo)`);
                                 geminiResult.innerHTML = cachedData.content + cachedData.sources;
                                 const refreshButton = document.createElement('button');
-                                refreshButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2 h-5 w-5"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>Gerar Novamente`;
+                                refreshButton.innerHTML = `
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2 h-5 w-5"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+                                Gerar Novamente`;
                                 refreshButton.className = 'gemini-btn w-full mt-6 bg-emerald-600 hover:bg-emerald-700 text-white';
                                 refreshButton.onclick = () => fetchAndDisplaySummary(true);
                                 geminiResult.appendChild(refreshButton);
@@ -387,9 +323,9 @@
                                 return;
                             }
                         }
-                        showGeminiModal(`Resumo sobre ${conditionDoc.condition}`);
+                        showGeminiModal(`Resumo sobre ${conditionKey}`);
                         const systemPrompt = "Você é um assistente médico. Formate sua resposta usando Markdown. Forneça um resumo conciso e informativo para profissionais de saúde, baseado nas informações mais recentes da web.";
-                        const userPrompt = `Forneça um resumo sobre a condição médica "${conditionDoc.condition}", cobrindo os seguintes tópicos com seus respectivos títulos: ### Etiologia, ### Apresentação Clínica Principal, ### Diagnóstico, e ### Opções de Tratamento. Use fontes confiáveis.`;
+                        const userPrompt = `Forneça um resumo sobre a condição médica "${conditionKey}", cobrindo os seguintes tópicos com seus respectivos títulos: ### Etiologia, ### Apresentação Clínica Principal, ### Diagnóstico, e ### Opções de Tratamento. Use fontes confiáveis.`;
                         await callGeminiAPI(userPrompt, systemPrompt, true, cacheKey);
                     };
 
@@ -398,10 +334,12 @@
                         if (!forceRefresh) {
                            const cachedData = await getFromCache(cacheKey);
                             if (cachedData) {
-                                showGeminiModal(`Instruções para Paciente: ${conditionDoc.condition} (Salvo)`);
+                                showGeminiModal(`Instruções para Paciente: ${conditionKey} (Salvo)`);
                                 geminiResult.innerHTML = cachedData.content + cachedData.sources;
                                 const refreshButton = document.createElement('button');
-                                 refreshButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2 h-5 w-5"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>Gerar Novamente`;
+                                 refreshButton.innerHTML = `
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2 h-5 w-5"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+                                Gerar Novamente`;
                                 refreshButton.className = 'gemini-btn w-full mt-6 bg-emerald-600 hover:bg-emerald-700 text-white';
                                 refreshButton.onclick = () => fetchAndDisplayPatientInstructions(true);
                                 geminiResult.appendChild(refreshButton);
@@ -409,10 +347,10 @@
                                 return;
                             }
                         }
-                        showGeminiModal(`Instruções para Paciente: ${conditionDoc.condition}`);
+                        showGeminiModal(`Instruções para Paciente: ${conditionKey}`);
                         const prescriptionText = allPrescriptions.map(p => `- Prescrição: ${p.title}\n${p.items.join('\n')}`).join('\n\n').replace(/<[^>]*>?/gm, ' ');
                         const systemPrompt = "Você é um assistente de comunicação em saúde. Sua tarefa é traduzir prescrições médicas complexas em instruções claras, simples e amigáveis para pacientes leigos. Use Markdown para formatação. Evite jargão a todo custo e foque na ação que o paciente precisa tomar.";
-                        const userPrompt = `Com base nas seguintes prescrições para "${conditionDoc.condition}", gere um texto único com instruções para o paciente. Organize por medicamento usando títulos (### Nome do Medicamento). Explique para que serve, como e quando tomar, e por quanto tempo. Finalize com um título '### Avisos Importantes'.\n\n${prescriptionText}`;
+                        const userPrompt = `Com base nas seguintes prescrições para "${conditionKey}", gere um texto único com instruções para o paciente. Organize por medicamento usando títulos (### Nome do Medicamento). Explique para que serve, como e quando tomar, e por quanto tempo. Finalize com um título '### Avisos Importantes'.\n\n${prescriptionText}`;
                         await callGeminiAPI(userPrompt, systemPrompt, false, cacheKey);
                     };
                     
@@ -422,57 +360,57 @@
                     }
                 }
 
-                document.getElementById('back-btn').addEventListener('click', () => renderConditions(conditionDoc.specialty, isCustom));
+                document.getElementById('back-btn').addEventListener('click', () => renderConditions(specialtyKey, isCustom));
                 window.scrollTo(0, 0);
             }
 
-            async function renderConditions(specialtyKey, isCustom = false) {
-                 currentSpecialty = specialtyKey;
-                 currentCondition = null;
-                 contentDisplay.innerHTML = `<div class="text-center p-8"><svg class="animate-spin h-8 w-8 text-emerald-400 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></div>`;
-
-                 const conditions = isCustom ? await getCustomConditions(specialtyKey) : await getConditions(currentFicha, specialtyKey);
+             function renderConditions(specialtyKey, isCustom = false) {
+                currentSpecialty = specialtyKey;
+                currentCondition = null;
+                const conditions = isCustom 
+                    ? JSON.parse(localStorage.getItem('customModules'))?.[specialtyKey] || {}
+                    : prescrevendoData[currentFicha][specialtyKey];
                 
-                 let html = `
+                let html = `
                     <h2 class="text-3xl font-bold mb-6 text-white">${specialtyKey}</h2>
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 `;
-                conditions.forEach(conditionDoc => {
+                for (const conditionKey in conditions) {
                     html += `
-                        <button class="condition-btn text-left p-4 bg-zinc-700 rounded-lg hover:bg-zinc-600 hover:shadow-xl transition-all duration-200" data-doc-id="${conditionDoc.id}">
-                            <h3 class="font-semibold text-lg text-gray-200">${conditionDoc.condition}</h3>
+                        <button class="condition-btn text-left p-4 bg-gray-700 rounded-lg hover:bg-gray-600 hover:shadow-xl transition-all duration-200" data-specialty="${specialtyKey}" data-condition="${conditionKey}" data-custom="${isCustom}">
+                            <h3 class="font-semibold text-lg text-gray-200">${conditionKey}</h3>
                         </button>
                     `;
-                });
+                }
                 html += `</div>`;
                 contentDisplay.innerHTML = html;
 
                 document.querySelectorAll('.condition-btn').forEach(btn => {
-                    btn.addEventListener('click', async (e) => {
-                        const docId = e.currentTarget.dataset.docId;
-                        const conditionData = await getConditionByDocId(docId);
-                        if(conditionData) {
-                            renderConditionDetails(conditionData);
-                        }
+                    btn.addEventListener('click', (e) => {
+                        const specialty = e.currentTarget.dataset.specialty;
+                        const condition = e.currentTarget.dataset.condition;
+                        const custom = e.currentTarget.dataset.custom === 'true';
+                        renderConditionDetails(specialty, condition, custom);
                     });
                 });
             }
             
-            async function renderSpecialties(ficha) {
-                 specialtiesNav.innerHTML = `<div class="text-center p-4 text-gray-400">Carregando especialidades...</div>`;
-                 const specialties = await getSpecialties(ficha);
-                 const customSpecialties = await getCustomSpecialties();
+            function renderSpecialties(ficha) {
+                const specialties = prescrevendoData[ficha];
+                const customModules = JSON.parse(localStorage.getItem('customModules')) || {};
                 
-                 specialtiesNav.innerHTML = '';
-                 const ul = document.createElement('ul');
-                 ul.className = 'space-y-1';
+                specialtiesNav.innerHTML = '';
+                const ul = document.createElement('ul');
+                ul.className = 'space-y-1';
 
-                 specialties.forEach(key => {
+                // Render official modules
+                for (const key in specialties) {
                     const li = document.createElement('li');
                     const a = document.createElement('a');
                     a.href = '#';
                     a.textContent = key;
-                    a.className = 'block p-3 rounded-lg text-gray-300 hover:bg-zinc-700 hover:text-white transition-colors duration-200';
+                    a.className = 'block p-3 rounded-lg text-gray-300 hover:bg-gray-700 hover:text-white transition-colors duration-200';
+                    a.dataset.specialty = key;
                     a.addEventListener('click', (e) => {
                         e.preventDefault();
                         renderConditions(key, false);
@@ -480,9 +418,10 @@
                     });
                     li.appendChild(a);
                     ul.appendChild(li);
-                 });
+                }
 
-                 if (customSpecialties.length > 0) {
+                // Render custom modules
+                 if (Object.keys(customModules).length > 0) {
                      const divider = document.createElement('hr');
                      divider.className = 'border-gray-600 my-4';
                      ul.appendChild(divider);
@@ -491,12 +430,13 @@
                      customHeader.className = "px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider";
                      ul.appendChild(customHeader);
 
-                     customSpecialties.forEach(specialtyKey => {
+                     for (const specialtyKey in customModules) {
                          const li = document.createElement('li');
                          const a = document.createElement('a');
                          a.href = '#';
                          a.textContent = specialtyKey;
-                         a.className = 'block p-3 rounded-lg text-gray-300 hover:bg-zinc-700 hover:text-white transition-colors duration-200';
+                         a.className = 'block p-3 rounded-lg text-gray-300 hover:bg-gray-700 hover:text-white transition-colors duration-200';
+                         a.dataset.specialty = specialtyKey;
                          a.addEventListener('click', (e) => {
                              e.preventDefault();
                              renderConditions(specialtyKey, true);
@@ -504,73 +444,104 @@
                          });
                          li.appendChild(a);
                          ul.appendChild(li);
-                     });
+                     }
                  }
                 
                 specialtiesNav.appendChild(ul);
             }
             
-            async function filterAndRenderSearch(query) {
+             function filterAndRenderSearch(query) {
                 if (!query) {
-                    await loadLastView();
+                    // Re-render the last viewed state if available
+                    loadLastView();
                     return;
                 }
 
-                let html = `<h2 class="text-3xl font-bold mb-6 text-white">Resultados da busca por "${query}"</h2><div class="space-y-4">`;
+                let html = `
+                    <h2 class="text-3xl font-bold mb-6 text-white">Resultados da busca por "${query}"</h2>
+                    <div class="space-y-4">
+                `;
                 let found = false;
                 const queryLower = query.toLowerCase();
 
-                const prescriptionsCol = collection(db, `artifacts/${appId}/public/data/prescriptions`);
-                const snapshot = await getDocs(prescriptionsCol);
-                
-                snapshot.forEach(doc => {
-                    const data = doc.data();
-                    if (data.condition.toLowerCase().includes(queryLower)) {
-                        found = true;
-                        const fichaLabel = data.isCustom ? 'Módulo Pessoal' : (data.ficha === 'verde' ? 'Verde' : 'Amarela/Vermelha');
-                        const fichaColor = data.isCustom ? 'text-blue-400' : (data.ficha === 'verde' ? 'text-green-400' : 'text-red-400');
-
-                        html += `
-                            <button class="condition-btn text-left p-4 bg-zinc-700 rounded-lg hover:bg-zinc-600 transition-all duration-200 w-full" data-doc-id="${doc.id}" data-ficha="${data.ficha}">
-                                <h3 class="font-semibold text-lg text-gray-200">${data.condition}</h3>
-                                <p class="text-sm text-gray-400">Ficha: <span class="${fichaColor} font-medium">${fichaLabel}</span> | Especialidade: ${data.specialty}</p>
-                            </button>
-                        `;
+                // Search official data
+                for (const ficha in prescrevendoData) {
+                    for (const specialtyKey in prescrevendoData[ficha]) {
+                        for (const conditionKey in prescrevendoData[ficha][specialtyKey]) {
+                            if (conditionKey.toLowerCase().includes(queryLower)) {
+                                found = true;
+                                html += createSearchResultButton(ficha, specialtyKey, conditionKey, false);
+                            }
+                        }
                     }
-                });
+                }
+                
+                // Search custom modules
+                const customModules = JSON.parse(localStorage.getItem('customModules')) || {};
+                 for (const specialtyKey in customModules) {
+                    for (const conditionKey in customModules[specialtyKey]) {
+                        if (conditionKey.toLowerCase().includes(queryLower)) {
+                            found = true;
+                            html += createSearchResultButton(null, specialtyKey, conditionKey, true);
+                        }
+                    }
+                }
 
                 if (!found) {
                     html += '<p class="text-gray-400">Nenhuma condição encontrada.</p>';
                 }
                 html += `</div>`;
                 contentDisplay.innerHTML = html;
+                addSearchResultListeners();
+            }
 
+            function createSearchResultButton(ficha, specialty, condition, isCustom) {
+                 const fichaLabel = isCustom ? 'Módulo Pessoal' : (ficha === 'verde' ? 'Verde' : 'Amarela/Vermelha');
+                 const fichaColor = isCustom ? 'text-blue-400' : (ficha === 'verde' ? 'text-green-400' : 'text-red-400');
+
+                return `
+                    <button class="condition-btn text-left p-4 bg-gray-700 rounded-lg hover:bg-gray-600 transition-all duration-200 w-full" data-ficha="${ficha}" data-specialty="${specialty}" data-condition="${condition}" data-custom="${isCustom}">
+                        <h3 class="font-semibold text-lg text-gray-200">${condition}</h3>
+                        <p class="text-sm text-gray-400">Ficha: <span class="${fichaColor} font-medium">${fichaLabel}</span> | Especialidade: ${specialty}</p>
+                    </button>
+                `;
+            }
+
+            function addSearchResultListeners() {
                 document.querySelectorAll('.condition-btn').forEach(btn => {
-                    btn.addEventListener('click', async (e) => {
-                        const docId = e.currentTarget.dataset.docId;
+                    btn.addEventListener('click', (e) => {
                         const ficha = e.currentTarget.dataset.ficha;
+                        const specialty = e.currentTarget.dataset.specialty;
+                        const condition = e.currentTarget.dataset.condition;
+                        const isCustom = e.currentTarget.dataset.custom === 'true';
                         
-                        if(ficha !== 'custom' && currentFicha !== ficha) {
-                            await switchFicha(ficha, false);
+                        if(!isCustom && currentFicha !== ficha) {
+                            switchFicha(ficha, false);
                         }
-                        const conditionData = await getConditionByDocId(docId);
-                        if (conditionData) {
-                            renderConditionDetails(conditionData);
-                        }
+                        
+                        renderConditionDetails(specialty, condition, isCustom);
                     });
                 });
             }
 
-            async function switchFicha(newFicha, resetContent = true) {
+            function switchFicha(newFicha, resetContent = true) {
                 currentFicha = newFicha;
-                await renderSpecialties(newFicha);
+                renderSpecialties(newFicha);
                  if(resetContent) {
                      currentSpecialty = null;
                      currentCondition = null;
                      localStorage.removeItem('lastView');
-                     contentDisplay.innerHTML = `<div class="text-center text-gray-400 p-8 flex flex-col items-center justify-center h-full"><svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-16 w-16 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg><p class="text-xl mt-4 text-gray-300">Selecione uma especialidade para começar</p><p class="text-gray-500">Ou use a busca para encontrar uma condição.</p></div>`;
+                     contentDisplay.innerHTML = `<div class="text-center text-gray-400 p-8 flex flex-col items-center justify-center h-full">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-16 w-16 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                            </svg>
+                            <p class="text-xl mt-4 text-gray-300">Selecione uma especialidade para começar</p>
+                            <p class="text-gray-500">Ou use a busca para encontrar uma condição.</p>
+                         </div>`;
                      searchBar.value = '';
                  }
+                
+                pageTitle.textContent = newFicha === 'verde' ? 'Guia Ficha Verde' : 'Guia Ficha Amarela/Vermelha';
                 
                 if (newFicha === 'verde') {
                     fichaVerdeBtn.classList.add('active-ficha');
@@ -590,20 +561,16 @@
                 }
             }
             
-            async function loadLastView() {
+            function loadLastView() {
                 const lastView = JSON.parse(localStorage.getItem('lastView'));
-                if (lastView && lastView.docId) {
-                    if(lastView.ficha !== currentFicha && lastView.ficha !== 'custom') {
-                        await switchFicha(lastView.ficha, false);
+                if (lastView) {
+                    if(lastView.ficha !== currentFicha) {
+                        switchFicha(lastView.ficha, false);
                     }
-                    const conditionDoc = await getConditionByDocId(lastView.docId);
-                    if(conditionDoc){
-                        renderConditionDetails(conditionDoc);
-                    } else {
-                        await switchFicha(currentFicha);
-                    }
+                    renderConditionDetails(lastView.specialtyKey, lastView.conditionKey, lastView.isCustom);
                 } else {
-                    await switchFicha(currentFicha);
+                    // Show default welcome message
+                    switchFicha(currentFicha);
                 }
             }
 
@@ -614,7 +581,7 @@
                 });
                 closeModuleModalBtn.addEventListener('click', () => addModuleModal.classList.add('hidden'));
                 
-                saveModuleBtn.addEventListener('click', async () => {
+                saveModuleBtn.addEventListener('click', () => {
                     const specialty = document.getElementById('module-specialty').value.trim();
                     const condition = document.getElementById('module-condition').value.trim();
                     const content = document.getElementById('module-content').value.trim();
@@ -624,33 +591,16 @@
                         return;
                     }
 
-                    saveModuleBtn.disabled = true;
-                    saveModuleBtn.innerText = "Salvando...";
-                    
-                    try {
-                        const prescriptionsCol = collection(db, `artifacts/${appId}/public/data/prescriptions`);
-                        const newDocRef = await addDoc(prescriptionsCol, {
-                            ficha: 'custom',
-                            specialty,
-                            condition,
-                            content: content.replace(/\n/g, '<br>'),
-                            prescriptions: [],
-                            isCustom: true,
-                            createdAt: serverTimestamp()
-                        });
-
-                        addModuleModal.classList.add('hidden');
-                        await renderSpecialties(currentFicha); // Atualiza a lista de especialidades
-                        const newDoc = await getConditionByDocId(newDocRef.id);
-                        renderConditionDetails(newDoc);
-
-                    } catch(error) {
-                        console.error("Erro ao salvar módulo customizado:", error);
-                        alert("Erro ao salvar o módulo. Tente novamente.");
-                    } finally {
-                        saveModuleBtn.disabled = false;
-                        saveModuleBtn.innerText = "Salvar Módulo";
+                    let customModules = JSON.parse(localStorage.getItem('customModules')) || {};
+                    if (!customModules[specialty]) {
+                        customModules[specialty] = {};
                     }
+                    customModules[specialty][condition] = { content: content.replace(/\n/g, '<br>') }; // Simple conversion
+                    localStorage.setItem('customModules', JSON.stringify(customModules));
+                    
+                    addModuleModal.classList.add('hidden');
+                    renderSpecialties(currentFicha);
+                    renderConditionDetails(specialty, condition, true);
                 });
             }
 
@@ -661,9 +611,8 @@
             searchBar.addEventListener('input', (e) => filterAndRenderSearch(e.target.value));
             geminiModalClose.addEventListener('click', hideGeminiModal);
             
-            // --- Carregamento Inicial ---
-            await migrateDatabaseToFirestore();
-            await loadLastView(); 
+            // Initial Load
+            loadLastView();
             setupCustomModules();
         }
 
@@ -677,24 +626,24 @@
         .ficha-verde-text { color: #4ade80; }
         .ficha-vermelha-text { color: #f87171; }
         .active-ficha {
-            background-color: #3f3f46; /* zinc-700 */
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(96, 165, 250, 0.3);
+            border: 1px solid rgba(96, 165, 250, 0.5);
         }
         ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #18181b; } /* zinc-900 */
-        ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 4px; } /* zinc-700 */
-        ::-webkit-scrollbar-thumb:hover { background: #52525b; } /* zinc-600 */
+        ::-webkit-scrollbar-track { background: #1f2937; }
+        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
         .gemini-btn {
-            background-color: #3f3f46; color: #d4d4d8; padding: 0.6rem 1.2rem;
+            background-color: #374151; color: #d1d5db; padding: 0.6rem 1.2rem;
             border-radius: 0.5rem; font-weight: 500; transition: all 0.2s;
             display: flex; align-items: center; justify-content: center;
-            border: 1px solid #52525b;
+            border: 1px solid #4b5563;
         }
-        .gemini-btn:hover { background-color: #52525b; }
+        .gemini-btn:hover { background-color: #4b5563; }
     </style>
 </head>
 <body class="bg-zinc-900 text-gray-300">
-
-    <div id="migration-status" class="hidden fixed top-0 left-0 right-0 bg-emerald-500 text-white text-center p-2 z-50"></div>
 
     <!-- Sidebar / Navigation -->
     <aside id="sidebar" class="sidebar bg-zinc-800 w-72 fixed top-0 left-0 h-full shadow-lg p-4 z-20 transform -translate-x-full md:translate-x-0 border-r border-zinc-700 flex flex-col">
@@ -704,7 +653,7 @@
         </div>
         <input type="text" id="search-bar" placeholder="Pesquisar..." class="w-full p-2 bg-zinc-700 border border-zinc-600 rounded-lg mb-4 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500">
         <nav id="specialties-nav" class="overflow-y-auto flex-grow">
-            <!-- As especialidades serão inseridas aqui dinamicamente -->
+            <!-- Specialties will be dynamically inserted here -->
         </nav>
         <div class="mt-4">
             <button id="add-module-btn" class="w-full flex items-center justify-center p-3 rounded-lg text-gray-300 bg-zinc-700 hover:bg-emerald-600 hover:text-white transition-colors duration-200">
@@ -714,33 +663,33 @@
         </div>
     </aside>
 
-    <!-- Conteúdo Principal -->
+    <!-- Main Content -->
     <main id="main-content" class="main-content md:ml-72 p-4 md:p-8">
-        <!-- Cabeçalho -->
+        <!-- Header -->
         <header class="flex justify-between items-center mb-8">
              <button id="menu-toggle" class="md:hidden p-2 rounded-md bg-zinc-700 text-gray-300">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
             </button>
             <div class="flex-grow flex justify-center">
-                 <div class="flex justify-center gap-2 md:gap-4 rounded-xl p-1 bg-zinc-800 border border-zinc-700">
-                    <button id="ficha-verde-btn" class="ficha-selector text-white font-semibold py-2 px-4 md:px-6 rounded-lg transition-all duration-300" data-ficha="verde">
+                 <div class="flex justify-center gap-4 rounded-xl p-1 bg-zinc-800 border border-zinc-700">
+                    <button id="ficha-verde-btn" class="ficha-selector text-white font-semibold py-2 px-6 rounded-lg transition-all duration-300" data-ficha="verde">
                         Ficha Verde
                     </button>
-                    <button id="ficha-vermelha-btn" class="ficha-selector text-white font-semibold py-2 px-4 md:px-6 rounded-lg transition-all duration-300" data-ficha="vermelha">
+                    <button id="ficha-vermelha-btn" class="ficha-selector text-white font-semibold py-2 px-6 rounded-lg transition-all duration-300" data-ficha="vermelha">
                         Ficha Amarela/Vermelha
                     </button>
                 </div>
             </div>
-            <div class="w-8"></div> <!-- Espaçador -->
+            <div class="w-8"></div>
         </header>
 
-        <!-- Área de Exibição de Conteúdo -->
+        <!-- Content Display Area -->
         <div id="content-display" class="bg-zinc-800 p-6 md:p-8 rounded-xl shadow-lg border border-zinc-700 min-h-[75vh]">
-             <!-- O conteúdo inicial ou selecionado aparecerá aqui -->
+             <!-- Initial state / selected content appears here -->
         </div>
     </main>
     
-    <!-- Modal do Gemini -->
+    <!-- Gemini Modal -->
     <div id="gemini-modal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden">
         <div class="bg-zinc-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col border border-zinc-700">
             <div class="flex justify-between items-center p-4 border-b border-zinc-700">
@@ -760,7 +709,7 @@
         </div>
     </div>
 
-    <!-- Modal para Adicionar Módulo -->
+    <!-- Add Module Modal -->
      <div id="add-module-modal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden">
         <div class="bg-zinc-800 rounded-xl shadow-2xl w-full max-w-xl border border-zinc-700">
             <div class="flex justify-between items-center p-4 border-b border-zinc-700">
@@ -780,4 +729,3 @@
 
 </body>
 </html>
-
