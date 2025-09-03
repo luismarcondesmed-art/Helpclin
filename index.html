@@ -109,6 +109,24 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        #gemini-result h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #d1d5db; /* gray-300 */
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+            border-bottom: 1px solid #4b5563;
+            padding-bottom: 0.5rem;
+        }
+        #gemini-result ul {
+            list-style-type: disc;
+            padding-left: 1.5rem;
+            margin-top: 1rem;
+            margin-bottom: 1rem;
+        }
+        #gemini-result li {
+            margin-bottom: 0.5rem;
+        }
     </style>
 </head>
 <body class="bg-gray-900 text-gray-300">
@@ -186,10 +204,9 @@
     <script src="database.js"></script>
     <script>
         // --- Service Worker Registration for PWA ---
-        // ATUALIZADO: Registrando o arquivo sw.js externo
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js') // Aponta para o novo arquivo
+                navigator.serviceWorker.register('./sw.js')
                     .then(registration => console.log('ServiceWorker registration successful with scope: ', registration.scope))
                     .catch(error => console.log('ServiceWorker registration failed: ', error));
             });
@@ -216,9 +233,10 @@
         // --- State ---
         let currentFicha = 'verde';
         let currentSpecialty = null;
+        let currentCondition = null;
         let isSidebarOpen = false;
         
-        // --- Gemini API Functions ---
+        // --- Gemini API & Caching Functions ---
         const textModel = 'gemini-2.5-flash-preview-05-20';
         const ttsModel = 'gemini-2.5-flash-preview-tts';
 
@@ -232,8 +250,37 @@
         function hideGeminiModal() {
             geminiModal.classList.add('hidden');
         }
+
+        function getCacheKey(type) {
+             if (!currentFicha || !currentSpecialty || !currentCondition) return null;
+             return `geminiCache-${currentFicha}-${currentSpecialty}-${currentCondition}-${type}`;
+        }
+        const getFromCache = (key) => localStorage.getItem(key);
+        const saveToCache = (key, data) => localStorage.setItem(key, data);
+
+        function markdownToHtml(text) {
+            let html = text
+                .replace(/^### (.*$)/gim, '<h3 class="text-xl font-bold mt-4 mb-2 text-gray-100">$1</h3>')
+                .replace(/^## (.*$)/gim, '<h2 class="text-2xl font-bold mt-5 mb-3 text-white">$1</h2>')
+                .replace(/^# (.*$)/gim, '<h1 class="text-3xl font-bold mt-6 mb-4 text-white">$1</h1>')
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/^- (.*$)/gim, '<li>$1</li>')
+                .replace(/^\* (.*$)/gim, '<li>$1</li>');
+
+            html = html.replace(/(<li>(.|\n)*?<\/li>)/g, (match) => {
+                 return match.trim().startsWith('<li>') ? `<ul class="list-disc pl-6 space-y-2 my-4">${match}</ul>` : match;
+            });
+            
+             html = html.split('\n').map(line => {
+                if (!line.trim()) return '';
+                if (line.trim().startsWith('<h') || line.trim().startsWith('<ul')) return line;
+                return `<p class="mb-3">${line.replace(/<\/li>(\n)?<li/g, '</li><li')} </p>`;
+             }).join('');
+
+            return html;
+        }
         
-        // ATUALIZADO: Função para chamar o proxy seguro no Netlify com melhor tratamento de erros
         async function callProxyAPI(bodyPayload, retries = 3, delay = 1000) {
             const proxyUrl = '/api/gemini-proxy';
             
@@ -261,8 +308,8 @@
             }
         }
 
-        async function callGeminiAPI(prompt, systemInstruction, useGrounding = false) {
-             const body = {
+        async function callGeminiAPI(prompt, systemInstruction, useGrounding = false, cacheKey) {
+            const body = {
                 prompt,
                 systemInstruction,
                 useGrounding,
@@ -288,11 +335,16 @@
                             sourcesHTML += '</ul>';
                         }
                     }
-                    let htmlContent = candidate.content.parts[0].text
-                        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                        .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                        .replace(/(\r\n|\n|\r)/gm, "<br>");
-                    geminiResult.innerHTML = `<p>${htmlContent}</p>${sourcesHTML}`;
+                    
+                    let rawText = candidate.content.parts[0].text;
+                    let htmlContent = markdownToHtml(rawText);
+                    let finalHtml = `${htmlContent}${sourcesHTML}`;
+                    
+                    geminiResult.innerHTML = finalHtml;
+                    
+                    if (cacheKey) {
+                        saveToCache(cacheKey, finalHtml);
+                    }
                 } else {
                     const rejectionReason = result.candidates?.[0]?.finishReason;
                     if (rejectionReason === 'SAFETY') {
@@ -360,7 +412,7 @@
             if (currentAudio && !currentAudio.paused) {
                 currentAudio.pause();
                 currentAudio = null;
-                 buttonElement.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 A0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" /></svg>`;
+                 buttonElement.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" /></svg>`;
                 return;
             }
 
@@ -428,6 +480,9 @@
         }
 
         function renderConditionDetails(specialtyKey, conditionKey) {
+            currentSpecialty = specialtyKey;
+            currentCondition = conditionKey;
+            
             const condition = prescrevendoData[currentFicha][specialtyKey][conditionKey];
             const allPrescriptions = condition.prescricoes || [];
             
@@ -452,31 +507,63 @@
             `;
             contentDisplay.innerHTML = html;
             
-            // Add event listeners
-            document.getElementById('back-btn').addEventListener('click', () => renderConditions(specialtyKey));
-            
-            document.getElementById('gemini-summarize-btn').addEventListener('click', () => {
+            const fetchAndDisplaySummary = async (forceRefresh = false) => {
+                const cacheKey = getCacheKey('summary');
+                if (!forceRefresh) {
+                    const cachedData = getFromCache(cacheKey);
+                    if (cachedData) {
+                        showGeminiModal(`Resumo sobre ${conditionKey} (Salvo)`);
+                        geminiResult.innerHTML = cachedData;
+                        const refreshButton = document.createElement('button');
+                        refreshButton.textContent = 'Gerar Novamente';
+                        refreshButton.className = 'gemini-btn w-full mt-6';
+                        refreshButton.onclick = () => fetchAndDisplaySummary(true);
+                        geminiResult.appendChild(refreshButton);
+                        geminiLoading.classList.add('hidden');
+                        return;
+                    }
+                }
                 showGeminiModal(`Resumo sobre ${conditionKey}`);
-                const systemPrompt = "Você é um assistente médico. Forneça um resumo conciso e informativo para profissionais de saúde, baseado nas informações mais recentes da web.";
-                const userPrompt = `Forneça um resumo sobre a condição médica "${conditionKey}", cobrindo etiologia, apresentação clínica principal, diagnóstico e opções de tratamento. Use fontes confiáveis.`;
-                callGeminiAPI(userPrompt, systemPrompt, true);
-            });
+                const systemPrompt = "Você é um assistente médico. Formate sua resposta usando Markdown. Forneça um resumo conciso e informativo para profissionais de saúde, baseado nas informações mais recentes da web.";
+                const userPrompt = `Forneça um resumo sobre a condição médica "${conditionKey}", cobrindo os seguintes tópicos com seus respectivos títulos: ### Etiologia, ### Apresentação Clínica Principal, ### Diagnóstico, e ### Opções de Tratamento. Use fontes confiáveis.`;
+                await callGeminiAPI(userPrompt, systemPrompt, true, cacheKey);
+            };
 
+            const fetchAndDisplayPatientInstructions = async (forceRefresh = false) => {
+                const cacheKey = getCacheKey('patientInstructions');
+                 if (!forceRefresh) {
+                    const cachedData = getFromCache(cacheKey);
+                    if (cachedData) {
+                        showGeminiModal(`Instruções para Paciente: ${conditionKey} (Salvo)`);
+                        geminiResult.innerHTML = cachedData;
+                        const refreshButton = document.createElement('button');
+                        refreshButton.textContent = 'Gerar Novamente';
+                        refreshButton.className = 'gemini-btn w-full mt-6';
+                        refreshButton.onclick = () => fetchAndDisplayPatientInstructions(true);
+                        geminiResult.appendChild(refreshButton);
+                        geminiLoading.classList.add('hidden');
+                        return;
+                    }
+                }
+                showGeminiModal(`Instruções para Paciente: ${conditionKey}`);
+                const prescriptionText = allPrescriptions.map(p => `- Prescrição: ${p.title}\n${p.items.join('\n')}`).join('\n\n').replace(/<[^>]*>?/gm, ' ');
+                const systemPrompt = "Você é um assistente de comunicação em saúde. Sua tarefa é traduzir prescrições médicas complexas em instruções claras, simples e amigáveis para pacientes leigos. Use Markdown para formatação. Evite jargão a todo custo e foque na ação que o paciente precisa tomar.";
+                const userPrompt = `Com base nas seguintes prescrições para "${conditionKey}", gere um texto único com instruções para o paciente. Organize por medicamento usando títulos (### Nome do Medicamento). Explique para que serve, como e quando tomar, e por quanto tempo. Finalize com um título '### Avisos Importantes'.\n\n${prescriptionText}`;
+                await callGeminiAPI(userPrompt, systemPrompt, false, cacheKey);
+            };
+
+            document.getElementById('gemini-summarize-btn').addEventListener('click', () => fetchAndDisplaySummary(false));
             if (allPrescriptions.length > 0) {
-                 document.getElementById('gemini-patient-instructions-btn').addEventListener('click', () => {
-                    showGeminiModal(`Instruções para Paciente: ${conditionKey}`);
-                    const prescriptionText = allPrescriptions.map(p => `Prescrição: ${p.title}\n${p.items.join('\n')}`).join('\n\n').replace(/<[^>]*>?/gm, ' ');
-                    const systemPrompt = "Você é um assistente de comunicação em saúde. Sua tarefa é traduzir prescrições médicas complexas em instruções claras, simples e amigáveis para pacientes leigos. Evite jargão a todo custo e foque na ação que o paciente precisa tomar.";
-                    const userPrompt = `Com base nas seguintes prescrições para "${conditionKey}", gere um texto único com instruções para o paciente. Organize por medicamento, explicando para que serve (de forma simples), como e quando tomar, e por quanto tempo. Inclua um aviso geral para seguir as orientações e procurar um médico em caso de dúvidas ou efeitos adversos.\n\n${prescriptionText}`;
-                    callGeminiAPI(userPrompt, systemPrompt, false);
-                });
+                 document.getElementById('gemini-patient-instructions-btn').addEventListener('click', () => fetchAndDisplayPatientInstructions(false));
             }
             
+            document.getElementById('back-btn').addEventListener('click', () => renderConditions(specialtyKey));
             window.scrollTo(0, 0);
         }
 
         function renderConditions(specialtyKey) {
             currentSpecialty = specialtyKey;
+            currentCondition = null;
             const conditions = prescrevendoData[currentFicha][specialtyKey];
             let html = `
                 <h2 class="text-3xl font-bold mb-6 text-white">${specialtyKey}</h2>
@@ -589,6 +676,7 @@
             renderSpecialties(newFicha);
              if(resetContent) {
                  currentSpecialty = null;
+                 currentCondition = null;
                  contentDisplay.innerHTML = `<div class="text-center text-gray-400 p-8">
                         <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-12 w-12 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
