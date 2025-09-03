@@ -9,7 +9,7 @@
     <!-- PWA Manifest -->
     <link rel="manifest" href="./manifest.webmanifest">
     <meta name="theme-color" content="#1f2937">
-    <link rel="apple-touch-icon" href="httpshttps://placehold.co/192x192/1f2937/ffffff?text=PS">
+    <link rel="apple-touch-icon" href="https://placehold.co/192x192/1f2937/ffffff?text=PS">
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -133,10 +133,10 @@
             apiKey: "AIzaSyCvqp5HYUMnogWmwT0O1LFLOMsfqj9P83s",
             authDomain: "med-heklp.firebaseapp.com",
             projectId: "med-heklp",
-            storageBucket: "med-heklp.firebasestorage.app",
+            storageBucket: "med-heklp.appspot.com",
             messagingSenderId: "675054342845",
             appId: "1:675054342845:web:91e53e21060a087123ddd4",
-            measurementId: "G-BLWYTWFFTZ
+            measurementId: "G-BLWYTWFFTZ"
         };
 
         // Initialize Firebase
@@ -149,116 +149,6 @@
         const modalContainer = document.getElementById('modal-container');
         let appData; // A base de dados virá do Firebase
 
-        const initialDbContent = {
-            modules: {
-                respiratorio: {
-                    name: "Respiratório",
-                    icon: "Lung",
-                    diseases: [
-                        { id: "asma", name: "Crise Asmática", keywords: ["asma", "dispneia", "chiado", "sibilos"], cid10: "J45" },
-                        { id: "dpoc", name: "DPOC Exacerbado", keywords: ["dpoc", "bronquite", "enfisema"], cid10: "J44.1" },
-                        { id: "pac", name: "Pneumonia (PAC)", keywords: ["pneumonia", "infeccao pulmonar", "tosse"], cid10: "J18.9" },
-                        { id: "faringoamigdalite", name: "Faringoamigdalite", keywords: ["dor de garganta", "amigdalite"], cid10: "J03" },
-                        { id: "rinossinusite", name: "Rinossinusite", keywords: ["sinusite", "congestao nasal"], cid10: "J01.9" },
-                        { id: "influenza", name: "Influenza (Gripe)", keywords: ["gripe", "febre", "coriza"], cid10: "J11.1" },
-                    ]
-                },
-                cardiovascular: {
-                    name: "Cardiovascular",
-                    icon: "HeartPulse",
-                    diseases: [
-                        { id: "sca", name: "Síndrome Coronariana Aguda (SCA)", keywords: ["iam", "infarto", "angina"], cid10: "I20-I25" },
-                        { id: "icad", name: "IC Aguda Descompensada (ICAD)", keywords: ["eap", "edema agudo", "insuficiencia cardiaca"], cid10: "I50.1" },
-                        { id: "crisehipertensiva", name: "Crise Hipertensiva", keywords: ["pressao alta", "emergencia hipertensiva"], cid10: "I10" },
-                        { id: "taquiarritmias", name: "Taquiarritmias", keywords: ["fa", "fibrilacao atrial", "tsv"], cid10: "I47, I48" },
-                        { id: "bradiarritmias", name: "Bradiarritmias", keywords: ["bavt", "bloqueio", "marcapasso"], cid10: "I49.5" },
-                        { id: "disseccaoaorta", name: "Dissecção Aguda de Aorta", keywords: ["daa", "dor toracica irradiada"], cid10: "I71.0" },
-                        { id: "tvptep", name: "TVP e TEP", keywords: ["trombose venosa", "embolia pulmonar"], cid10: "I80.2, I26" },
-                        { id: "oaa", name: "Oclusão Arterial Aguda (OAA)", keywords: ["isquemia aguda", "dor membro"], cid10: "I74" },
-                        { id: "sincope", name: "Síncope", keywords: ["desmaio", "perda de consciencia"], cid10: "R55" },
-                    ]
-                },
-                neurologico: {
-                    name: "Neurológico",
-                    icon: "BrainCircuit",
-                    diseases: [
-                        { id: "avc", name: "Acidente Vascular Cerebral (AVC)", keywords: ["avci", "avch", "derrame"], cid10: "I63, I61" },
-                        { id: "tce", name: "Traumatismo Cranioencefálico (TCE)", keywords: ["trauma cabeca", "glasgow"], cid10: "S06" },
-                        { id: "criseconvulsiva", name: "Crise Convulsiva", keywords: ["convulsao", "epilepsia"], cid10: "G40" },
-                        { id: "cefaleia", name: "Cefaleias Primárias", keywords: ["dor de cabeca", "enxaqueca"], cid10: "R51, G43" },
-                        { id: "meningite", name: "Meningite", keywords: ["rigidez de nuca", "febre", "cealeia"], cid10: "G00-G03" },
-                        { id: "vertigem", name: "Vertigem Periférica", keywords: ["tontura", "labirintite"], cid10: "H81.3" },
-                    ]
-                },
-                 gastro: { 
-                    name: "Gastrointestinal", 
-                    icon: "Stomach", 
-                    diseases: [
-                        { id: "hda", name: "Hemorragia Digestiva Alta (HDA)", keywords: ["vomito com sangue", "melena"], cid10: "K92.2" },
-                        { id: "pancreatite", name: "Pancreatite Aguda", keywords: ["dor em faixa", "amilase", "lipase"], cid10: "K85" },
-                        { id: "diarreia", name: "Diarreia Aguda / GECA", keywords: ["gastroenterite", "desidratacao"], cid10: "A09" },
-                        { id: "colangite", name: "Colangite", keywords: ["triade de charcot", "ictericia"], cid10: "K83.0" },
-                        { id: "encefalopatia", name: "Encefalopatia Hepática", keywords: ["asterix", "flapping", "cirrose"], cid10: "K72" },
-                    ] 
-                },
-                 endocrino: { 
-                    name: "Endócrino/Metabólico", 
-                    icon: "Droplets", 
-                    diseases: [
-                        { id: "cad", name: "Cetoacidose e EHH", keywords: ["cetoacidose diabetica", "hiperglicemia"], cid10: "E10.1, E11.0" },
-                        { id: "hipoglicemia", name: "Hipoglicemia", keywords: ["glicose baixa", "suor frio"], cid10: "E16.2" },
-                        { id: "disturbiosodio", name: "Distúrbios do Sódio", keywords: ["hiponatremia", "hipernatremia"], cid10: "E87.1, E87.0" },
-                        { id: "disturbiopotassio", name: "Distúrbios do Potássio", keywords: ["hipocalemia", "hipercalemia"], cid10: "E87.6, E87.5" },
-                    ] 
-                },
-                infeccioso: { 
-                    name: "Infeccioso", 
-                    icon: "Virus", 
-                    diseases: [
-                        { id: "neutropeniafebril", name: "Neutropenia Febril", keywords: ["quimioterapia", "febre"], cid10: "D70" },
-                        { id: "dengue", name: "Dengue", keywords: ["febre", "mialgia", "sinais de alarme"], cid10: "A90" },
-                        { id: "artriteseptica", name: "Artrite Séptica", keywords: ["dor articular", "artrocentese"], cid10: "M00" },
-                     ]
-                },
-                 nefrourologico: { 
-                    name: "Nefro/Urológico", 
-                    icon: "Filter", 
-                    diseases: [
-                        { id: "lra", name: "Lesão Renal Aguda (LRA)", keywords: ["ira", "insuficiencia renal"], cid10: "N17" },
-                        { id: "rabdomiolise", name: "Rabdomiólise", keywords: ["cpk", "urina escura", "mialgia"], cid10: "M62.8" },
-                        { id: "colicanefretica", name: "Cólica Nefrética", keywords: ["calculo renal", "dor lombar"], cid10: "N23" },
-                        { id: "itu", name: "Infecção do Trato Urinário (ITU)", keywords: ["cistite", "pielonefrite"], cid10: "N39.0, N10" },
-                    ] 
-                },
-                 psiquiatria: { 
-                    name: "Psiquiatria", 
-                    icon: "BrainCog", 
-                    diseases: [
-                        { id: "agitacao", name: "Agitação Psicomotora", keywords: ["agressividade", "delirium"], cid10: "R45.1" },
-                        { id: "ansiedade", name: "Crise de Ansiedade/Pânico", keywords: ["ataque de panico", "falta de ar"], cid10: "F41.0" },
-                    ] 
-                },
-                externas: { 
-                    name: "Causas Externas", 
-                    icon: "Siren", 
-                    diseases: [
-                        { id: "intoxicacoes", name: "Intoxicações Exógenas", keywords: ["toxindromes", "antidoto"], cid10: "T36-T65" },
-                        { id: "acidenteofidico", name: "Acidente Ofídico", keywords: ["picada de cobra", "jararaca", "cascavel"], cid10: "T63.0" },
-                    ]
-                },
-            },
-            severeConditions: {
-                 name: "Emergências Graves",
-                 icon: "ShieldAlert",
-                 diseases: [
-                    { id: "pcr", name: "Parada Cardiorrespiratória (PCR)", keywords: ["acls", "rcp", "parada"], cid10: "I46" },
-                    { id: "sepse", name: "Sepse e Choque Séptico", keywords: ["infeccao", "disfuncao organica"], cid10: "A41.9" },
-                    { id: "anafilaxia", name: "Anafilaxia", keywords: ["reacao alergica", "choque anafilatico"], cid10: "T78.2" },
-                    { id: "iot", name: "Intubação Orotraqueal (IOT)", keywords: ["sequencia rapida", "via aerea"], cid10: "Z93.0" },
-                 ]
-            }
-        };
-
         const loadAppData = async () => {
             const docRef = doc(firestoreDb, "appData", "content");
             const docSnap = await getDoc(docRef);
@@ -267,17 +157,15 @@
                 console.log("Dados carregados do Firebase.");
                 appData = docSnap.data();
             } else {
-                console.log("Nenhum dado encontrado no Firebase. Populando com dados iniciais...");
-                await setDoc(docRef, initialDbContent);
-                appData = initialDbContent;
-                alert("Base de dados inicializada no Firebase pela primeira vez!");
+                appContainer.innerHTML = `<div class="text-center p-8 bg-gray-800 rounded-lg"><h2 class="text-2xl font-bold text-red-400">Erro: Base de Dados Não Encontrada</h2><p class="mt-4 text-gray-300">A base de dados do aplicativo ainda não foi inicializada no Firebase. Siga as instruções no arquivo <strong>INSTRUCOES_DATABASE.md</strong> para fazer o upload inicial.</p></div>`;
+                throw new Error("Database not found in Firestore.");
             }
         };
         
         const saveAppData = async () => {
             try {
                 const docRef = doc(firestoreDb, "appData", "content");
-                await setDoc(docRef, appData);
+                await setDoc(docRef, appData, { merge: true });
                 console.log("Dados salvos no Firebase.");
             } catch (error) {
                 console.error("Erro ao salvar dados no Firebase:", error);
@@ -286,60 +174,19 @@
         };
         
         const getDiseaseById = (diseaseId) => {
-            for (const moduleKey in appData.modules) {
+             for (const moduleKey in appData.modules) {
                 const disease = appData.modules[moduleKey].diseases.find(d => d.id === diseaseId);
                 if (disease) return { disease, moduleKey };
             }
             const severeDisease = appData.severeConditions.diseases.find(d => d.id === diseaseId);
             if(severeDisease) return { disease: severeDisease, moduleKey: 'severeConditions' };
+            
+            for(const quickKey in appData.quickReference){
+                const ref = appData.quickReference[quickKey].items.find(i => i.id === diseaseId);
+                if(ref) return { disease: ref, moduleKey: quickKey, isQuickRef: true };
+            }
             return null;
         }
-
-        const fetchDiseaseDetails = (diseaseId) => {
-            const details = {
-                 asma: {
-                    epidemiology: { text: "Infecções virais são responsáveis por mais de 80% dos casos de exacerbações asmáticas no PS." },
-                    diagnosis: { text: "A avaliação com prova de função pulmonar ou peak-flow é fundamental. Alteração de estado mental, confusão, sonolência, bradicardia, incapacidade de fala e tórax silencioso indicam parada cardíaca iminente." },
-                    management: { text: "O tratamento se baseia na estabilização, oxigenioterapia se SatO2 < 92%, e uso de broncodilatadores. Em casos graves ou refratários, considerar corticoides EV e Sulfato de Magnésio." },
-                    prescription: { text: `### β-2-agonista de Curta Duração (SABA)\n- **Nebulização:** Salbutamol (5mg/mL) 10-20 gotas em 4mL de SF0,9% a cada 20 min na primeira hora.\n- **Spray:** Salbutamol (100mcg/dose) 4-10 puffs a cada 20 min na primeira hora.\n\n### Corticoterapia\n- **Oral (preferencial):** Prednisona 40-80mg VO.\n- **Endovenoso:** Metilprednisolona 40mg EV 12/12h.` },
-                    redFlags: "Alteração do nível de consciência, tórax silencioso, bradicardia.",
-                    whenToAdmit: "VEF1 ou peak-flow < 25% na admissão, ou < 40% após tratamento. Resposta incompleta ao tto com história de asma quase fatal.",
-                    links: { uptodate: "https://www.uptodate.com/contents/acute-exacerbations-of-asthma-in-adults-emergency-department-and-inpatient-management", guidelines: "https://www.sbpt.org.br/portal/diretrizes-asma-sbpt/" }
-                },
-                sca: {
-                    epidemiology: { text: "As doenças cardiovasculares são a principal causa de morte no Brasil e no mundo." },
-                    diagnosis: { text: "Baseado na clínica (dor torácica ou equivalentes anginosos), alterações no ECG (supra/infra de ST, inversão de onda T) e marcadores de necrose miocárdica (troponina)." },
-                    management: { text: "Manejo inicial é o M.O.N.A.B.I.C.H. A decisão entre estratégia conservadora, CATE de emergência ou trombólise depende do tipo de SCA e da estratificação de risco." },
-                    prescription: { text: `### SCASSST\n- **AAS:** 300mg VO mastigado (ataque).\n- **Clopidogrel:** 300-600mg VO (ataque).\n- **Anticoagulação:** Enoxaparina 1mg/kg SC 12/12h.\n\n### SCACSST\n- **Reperfusão:** Angioplastia Primária (ICP) ou Trombólise Química (Alteplase).` },
-                    redFlags: "Dor refratária, instabilidade hemodinâmica, arritmias ventriculares.",
-                    whenToAdmit: "Todo paciente com SCA deve ser internado.",
-                    links: { uptodate: "https://www.uptodate.com/contents/overview-of-the-acute-management-of-st-elevation-myocardial-infarction", guidelines: "https://abccardiol.org/article/diretriz-de-sindrome-coronariana-aguda-sca-da-sociedade-brasileira-de-cardiologia-2021/" }
-                },
-                 avc: {
-                    epidemiology: { text: "O AVC é uma das principais causas de morte e incapacidade no Brasil. O tipo isquêmico corresponde a cerca de 85% dos casos." },
-                    diagnosis: { text: "Déficit neurológico focal de início súbito (escala NIHSS). TC de crânio sem contraste é obrigatória para excluir hemorragia." },
-                    management: { text: "Tempo é cérebro! Foco na estabilização, controle pressórico permissivo e terapia de reperfusão se elegível." },
-                    prescription: { text: `### Trombólise Endovenosa (janela < 4.5h)\n- **Alteplase (rtPA):** 0,9mg/kg (máx 90mg). 10% em bolus, 90% em 1h.\n\n### Paciente NÃO trombolisado\n- **AAS:** 300mg VO (ataque) em 24-48h.` },
-                    redFlags: "Rebaixamento do nível de consciência, sinais de HIC, transformação hemorrágica.",
-                    whenToAdmit: "Todo paciente com AVC agudo deve ser internado em Unidade de AVC (Stroke Unit) ou CTI.",
-                    links: { uptodate: "https://www.uptodate.com/contents/initial-assessment-and-management-of-acute-stroke", guidelines: "#" }
-                },
-                // Adicione aqui os detalhes de todas as outras doenças...
-            };
-            // Retorna detalhes específicos ou um modelo genérico
-            return details[diseaseId] || {
-                lastUpdate: { date: new Date().toISOString(), author: "Sistema" },
-                epidemiology: { text: "Informações detalhadas não cadastradas para esta condição." },
-                diagnosis: { text: "Informações detalhadas não cadastradas." },
-                management: { text: "Informações detalhadas não cadastradas." },
-                prescription: { text: "Nenhuma prescrição padrão cadastrada." },
-                redFlags: "Verificar critérios gerais de gravidade.",
-                whenToAdmit: "Avaliação clínica individualizada.",
-                links: { uptodate: "#", guidelines: "#" },
-                comments: []
-            };
-        }
-
 
         const createLucideIcons = () => {
              setTimeout(() => {
@@ -353,7 +200,7 @@
         
         const renderHeader = (title, showBack = false, showSearch = false) => {
             const searchHtml = showSearch ? `<div class="relative w-full md:w-1/2"><input type="text" id="search-input" placeholder="Buscar por doença, sintoma, CID-10..." class="w-full bg-gray-800 border border-gray-700 rounded-full py-3 pl-12 pr-4 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"><div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg></div></div>` : '';
-            return `<header class="flex items-center justify-between mb-8"><div class="flex items-center gap-4">${showBack ? `<button onclick="navigateTo('home')" class="p-2 rounded-full hover:bg-gray-700 transition"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg></button>` : ''}<h1 class="text-3xl font-bold text-white">${title}</h1></div>${searchHtml}</header>`;
+            return `<header class="flex flex-col md:flex-row items-center justify-between mb-8 gap-4"><div class="flex items-center gap-4 w-full md:w-auto">${showBack ? `<button onclick="navigateTo('home')" class="p-2 rounded-full hover:bg-gray-700 transition"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg></button>` : ''}<h1 class="text-3xl font-bold text-white">${title}</h1></div>${searchHtml}</header>`;
         };
         
         const renderHomePage = () => {
@@ -365,16 +212,24 @@
             let severeConditionsHtml = appData.severeConditions.diseases.map(disease => {
                  return `<div onclick="navigateTo('disease', '${disease.id}')" class="bg-red-900/50 border border-red-700 rounded-2xl p-6 cursor-pointer hover:bg-red-800/60 hover:scale-105 transition-transform duration-300 flex flex-col items-center justify-center text-center shadow-lg"><i data-lucide="${appData.severeConditions.icon}" class="w-12 h-12 mb-4 text-red-400"></i><h2 class="text-xl font-semibold">${disease.name}</h2></div>`;
             }).join('');
+            
+            let quickReferenceHtml = Object.keys(appData.quickReference).map(key => {
+                 const ref = appData.quickReference[key];
+                 return `<div onclick="navigateTo('module', '${key}')" class="bg-gray-700 rounded-2xl p-6 cursor-pointer hover:bg-gray-600 hover:scale-105 transition-transform duration-300 flex flex-col items-center justify-center text-center shadow-lg"><i data-lucide="${ref.icon}" class="w-12 h-12 mb-4 text-green-400"></i><h2 class="text-xl font-semibold">${ref.name}</h2></div>`;
+            }).join('');
+
 
             appContainer.innerHTML = `
-                ${renderHeader('Guia de Bolso PS', false, true)}
+                ${renderHeader('HelpClínica - Guia de Bolso', false, true)}
                 <main id="main-content" class="fade-in">
                     <div id="search-results" class="hidden mb-8"></div>
                     <div id="modules-container">
-                        <h2 class="text-2xl font-semibold mb-4 text-gray-300">Módulos Principais</h2>
-                        <div id="modules-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 md:gap-6">${modulesHtml}</div>
                         <h2 class="text-2xl font-semibold mt-10 mb-4 text-gray-300">${appData.severeConditions.name}</h2>
-                        <div id="severe-conditions-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 gap-4 md:gap-6">${severeConditionsHtml}</div>
+                        <div id="severe-conditions-grid" class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">${severeConditionsHtml}</div>
+                        <h2 class="text-2xl font-semibold mt-10 mb-4 text-gray-300">Módulos por Especialidade</h2>
+                        <div id="modules-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 md:gap-6">${modulesHtml}</div>
+                        <h2 class="text-2xl font-semibold mt-10 mb-4 text-gray-300">Consulta Rápida</h2>
+                        <div id="quick-reference-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 md:gap-6">${quickReferenceHtml}</div>
                     </div>
                 </main>
             `;
@@ -383,54 +238,72 @@
         };
         
         const renderModulePage = (moduleKey) => {
-            const module = appData.modules[moduleKey] || appData.severeConditions;
+            const module = appData.modules[moduleKey] || appData.severeConditions || appData.quickReference[moduleKey];
             if (!module) {
                 navigateTo('home');
                 return;
             }
-            let diseasesHtml = module.diseases.map(disease => `<div onclick="navigateTo('disease', '${disease.id}')" class="bg-gray-800 rounded-lg p-4 cursor-pointer hover:bg-gray-700 transition"><h3 class="font-semibold text-lg text-blue-300">${disease.name}</h3><p class="text-sm text-gray-400 mt-1">CID-10: ${disease.cid10}</p></div>`).join('');
-            if(module.diseases.length === 0) diseasesHtml = `<p class="text-gray-400">Nenhuma condição cadastrada neste módulo ainda.</p>`;
-            appContainer.innerHTML = `${renderHeader(module.name, true)}<main class="fade-in space-y-4">${diseasesHtml}</main>`;
+            const items = module.diseases || module.items;
+            let itemsHtml = items.map(item => `<div onclick="navigateTo('disease', '${item.id}')" class="bg-gray-800 rounded-lg p-4 cursor-pointer hover:bg-gray-700 transition"><h3 class="font-semibold text-lg text-blue-300">${item.name}</h3>${item.cid10 ? `<p class="text-sm text-gray-400 mt-1">CID-10: ${item.cid10}</p>` : ''}</div>`).join('');
+            if(items.length === 0) itemsHtml = `<p class="text-gray-400">Nenhuma condição cadastrada neste módulo ainda.</p>`;
+            appContainer.innerHTML = `${renderHeader(module.name, true)}<main class="fade-in space-y-4">${itemsHtml}</main>`;
         };
 
         const renderDiseasePage = (diseaseId) => {
-            const { disease } = getDiseaseById(diseaseId) || {};
-            if (!disease) { appContainer.innerHTML = `<p>Doença não encontrada.</p>`; return; }
+            const result = getDiseaseById(diseaseId);
+            if (!result) { appContainer.innerHTML = `<p>Conteúdo não encontrado.</p>`; return; }
+            const { disease, isQuickRef } = result;
             
-            const details = fetchDiseaseDetails(diseaseId);
-            const savedData = disease;
-            // Mescla dados salvos com o template
-            Object.keys(details).forEach(key => {
-                if (savedData[key]) {
-                    details[key] = savedData[key];
-                }
-            });
+            const formattedDate = new Date(disease.lastUpdate.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            
+            const parseContent = (text) => {
+                if (!text) return '';
+                // H3
+                text = text.replace(/### (.*?)\n/g, '<h3 class="text-lg font-semibold mt-6 mb-2 text-blue-300">$1</h3>');
+                // Bold
+                text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                // List items
+                text = text.replace(/^- (.*)/gm, '<li class="ml-5 list-disc">$1</li>');
+                 // Replace newlines with <br>, but not inside list items
+                text = text.split('\n').map(line => line.trim().startsWith('<li') ? line : line + '<br>').join('').replace(/<br><li/g, '<li').replace(/<\/li><br>/g, '</li>');
 
-            const formattedDate = new Date(details.lastUpdate.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-            const parseMarkdown = text => text ? text.replace(/### (.*)/g, '<h3 class="text-lg font-semibold mt-4 mb-2 text-blue-300">$1</h3>').replace(/\*\* (.*) \*\*/g, '<strong>$1</strong>').replace(/^- (.*)/gm, '<li class="ml-4 list-disc">$1</li>').replace(/\n/g, '<br>') : '';
+                return text;
+            };
+
+            const commentsHtml = (disease.comments || []).map(c => `<div class="bg-gray-700 p-3 rounded-lg mt-2"><p class="text-sm">${c.text}</p><p class="text-xs text-gray-400 mt-1 text-right">- ${c.author} em ${new Date(c.date).toLocaleDateString('pt-BR')}</p></div>`).join('');
             
-            const commentsHtml = (details.comments || []).map(c => `<div class="bg-gray-700 p-3 rounded-lg mt-2"><p class="text-sm">${c.text}</p><p class="text-xs text-gray-400 mt-1 text-right">- ${c.author} em ${new Date(c.date).toLocaleDateString('pt-BR')}</p></div>`).join('');
+            let pageContent;
+
+            if (isQuickRef) {
+                 pageContent = `
+                    <section><h2>${disease.name}</h2>
+                    <div class="bg-gray-800 p-4 rounded-lg">${parseContent(disease.details)}</div></section>
+                `;
+            } else {
+                 pageContent = `
+                    <div class="space-y-8">
+                        <section><h2>Epidemiologia e Fatores de Risco</h2><div id="incidence-${disease.id}">${parseContent(disease.epidemiology)}</div></section>
+                        <section><h2>Diagnóstico</h2>${parseContent(disease.diagnosis)}</section>
+                        <section><h2>Conduta no PS</h2>${parseContent(disease.management)}</section>
+                        <section><h2>Prescrição Passo a Passo</h2><div class="bg-gray-800 p-4 rounded-lg">${parseContent(disease.prescription)}</div></section>
+                        <section><h2>Red Flags / Sinais de Alerta</h2>${parseContent(disease.redFlags)}</section>
+                        <section><h2>Critérios de Internação</h2>${parseContent(disease.whenToAdmit)}</section>
+                        <section><h2>Links Úteis</h2><ul class="list-disc ml-5"><li><a href="${disease.links.uptodate}" target="_blank" rel="noopener noreferrer" class="hover:underline">UpToDate</a></li><li><a href="${disease.links.guidelines}" target="_blank" rel="noopener noreferrer" class="hover:underline">Diretrizes Brasileiras / PCDT</a></li></ul></section>
+                    </div>
+                `;
+            }
 
             appContainer.innerHTML = `
-                ${renderHeader(details.name, true)}
+                ${renderHeader(disease.name, true)}
                 <main class="fade-in prose-styles">
-                    <div class="flex justify-between items-center mb-6"><p class="text-sm text-gray-400">Última atualização em: ${formattedDate} por ${details.lastUpdate.author}</p><button onclick="openEditModal('${details.id}')" class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition"><i data-lucide="PenSquare" class="w-4 h-4"></i> Editar</button></div>
-                    <div class="space-y-6">
-                        <section><h2>Epidemiologia e Fatores de Risco</h2><div id="incidence-${details.id}"><p>${details.epidemiology.text}</p></div></section>
-                        <section><h2>Diagnóstico</h2><p>${details.diagnosis.text}</p></section>
-                        <section><h2>Conduta no PS</h2><p>${details.management.text}</p>${details.management.flowchart ? `<img src="${details.management.flowchart}" alt="Fluxograma" class="mt-4 rounded-lg w-full">` : ''}</section>
-                        <section><h2>Prescrição Passo a Passo</h2><div class="bg-gray-800 p-4 rounded-lg">${parseMarkdown(details.prescription.text)}</div></section>
-                        <section><h2>Red Flags / Sinais de Alerta</h2><p>${details.redFlags}</p></section>
-                        <section><h2>Critérios de Internação</h2><p>${details.whenToAdmit}</p></section>
-                        <section><h2>Links Úteis</h2><ul class="list-disc ml-5"><li><a href="${details.links.uptodate}" target="_blank" rel="noopener noreferrer">UpToDate</a></li><li><a href="${details.links.guidelines}" target="_blank" rel="noopener noreferrer">Diretrizes Brasileiras</a></li></ul></section>
-                        <section><h2>Discussão / Comentários</h2>
-                            <div id="comments-section">${commentsHtml.length > 0 ? commentsHtml : '<p class="text-gray-500">Nenhum comentário ainda.</p>'}</div>
-                            <div class="mt-4"><textarea id="new-comment-text" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-2" placeholder="Adicionar um comentário..."></textarea><input type="text" id="new-comment-author" class="w-full mt-2 bg-gray-800 p-2" placeholder="Seu nome"><button onclick="addComment('${details.id}')" class="mt-2 bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg">Comentar</button></div>
-                        </section>
-                    </div>
+                    <div class="flex justify-between items-center mb-6"><p class="text-sm text-gray-400">Última atualização em: ${formattedDate} por ${disease.lastUpdate.author}</p><button onclick="openEditModal('${disease.id}')" class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition"><i data-lucide="PenSquare" class="w-4 h-4"></i> Editar</button></div>
+                    ${pageContent}
+                    <section class="mt-8"><h2>Discussão / Comentários</h2>
+                        <div id="comments-section">${commentsHtml.length > 0 ? commentsHtml : '<p class="text-gray-500">Nenhum comentário ainda.</p>'}</div>
+                        <div class="mt-4"><textarea id="new-comment-text" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-2" placeholder="Adicionar um comentário..."></textarea><input type="text" id="new-comment-author" class="w-full mt-2 bg-gray-800 p-2 rounded-lg" placeholder="Seu nome (ex: Dr. Silva)"><button onclick="addComment('${disease.id}')" class="mt-2 bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg">Comentar</button></div>
+                    </section>
                 </main>`;
             createLucideIcons();
-            if (details.epidemiology.incidence === null) fetchIncidenceData(details.id);
         };
         
         window.navigateTo = (page, param) => {
@@ -466,10 +339,15 @@
 
             const allDiseases = [
                 ...Object.values(appData.modules).flatMap(m => m.diseases),
-                ...appData.severeConditions.diseases
+                ...appData.severeConditions.diseases,
+                ...Object.values(appData.quickReference).flatMap(m => m.items)
             ].map(d => {
-                const module = Object.values(appData.modules).find(m => m.diseases.some(md => md.id === d.id)) || appData.severeConditions;
-                return { ...d, moduleName: module.name };
+                let moduleName = "Referência Rápida";
+                if(getDiseaseById(d.id) && !getDiseaseById(d.id).isQuickRef){
+                    const moduleKey = getDiseaseById(d.id).moduleKey;
+                     moduleName = appData.modules[moduleKey]?.name || appData.severeConditions.name;
+                }
+                return { ...d, moduleName };
             });
 
             const results = allDiseases.filter(disease => {
@@ -485,27 +363,35 @@
         };
 
         window.openEditModal = (diseaseId) => {
-            const { disease } = getDiseaseById(diseaseId) || {};
+            const { disease, isQuickRef } = getDiseaseById(diseaseId) || {};
             if(!disease) return;
 
-            const details = fetchDiseaseDetails(diseaseId);
-            Object.assign(details, disease);
+            let contentToEdit = '';
+            if (isQuickRef) {
+                 contentToEdit = `<div class="mb-4"><label for="edit-details" class="block text-sm font-medium">Detalhes</label><textarea id="edit-details" rows="10" class="w-full bg-gray-800 rounded-lg p-2">${disease.details || ''}</textarea></div>`;
+            } else {
+                 contentToEdit = ['epidemiology', 'diagnosis', 'management', 'prescription', 'redFlags', 'whenToAdmit']
+                    .map(key => `<div class="mb-4"><label for="edit-${key}" class="block text-sm font-medium capitalize">${key.replace(/([A-Z])/g, ' $1')}</label><textarea id="edit-${key}" rows="6" class="w-full bg-gray-800 rounded-lg p-2">${disease[key] || ''}</textarea></div>`).join('');
+            }
 
-            const contentToEdit = Object.keys(details).filter(key => typeof details[key] === 'object' && !Array.isArray(details[key]) && key !== 'lastUpdate' && key !== 'links').map(key => `<div class="mb-4"><label for="edit-${key}" class="block text-sm font-medium text-gray-300 mb-1 capitalize">${key}</label><textarea id="edit-${key}" rows="6" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-2">${details[key].text || ''}</textarea></div>`).join('');
-            modalContainer.innerHTML = `<div class="modal-overlay" onclick="closeModal()"><div class="modal-content" onclick="event.stopPropagation()"><h2 class="text-2xl font-bold mb-4">Editar: ${details.name}</h2><div class="mb-4"><label for="edit-author" class="block text-sm font-medium">Seu Nome</label><input type="text" id="edit-author" class="w-full bg-gray-800 p-2 rounded-lg" placeholder="Ex: Dr. Silva"></div>${contentToEdit}<div class="flex justify-end gap-4 mt-6"><button onclick="closeModal()" class="py-2 px-4 bg-gray-600 rounded-lg">Cancelar</button><button onclick="saveEdit('${details.id}')" class="py-2 px-4 bg-blue-600 rounded-lg">Salvar</button></div></div></div>`;
+            modalContainer.innerHTML = `<div class="modal-overlay" onclick="closeModal()"><div class="modal-content" onclick="event.stopPropagation()"><h2 class="text-2xl font-bold mb-4">Editar: ${disease.name}</h2><div class="mb-4"><label for="edit-author" class="block text-sm font-medium">Seu Nome</label><input type="text" id="edit-author" class="w-full bg-gray-800 p-2 rounded-lg" placeholder="Ex: Dr. Silva"></div>${contentToEdit}<div class="flex justify-end gap-4 mt-6"><button onclick="closeModal()" class="py-2 px-4 bg-gray-600 rounded-lg">Cancelar</button><button onclick="saveEdit('${disease.id}')" class="py-2 px-4 bg-blue-600 rounded-lg">Salvar</button></div></div></div>`;
         };
 
         window.closeModal = () => { modalContainer.innerHTML = ''; };
 
         window.saveEdit = async (diseaseId) => {
-            const { disease } = getDiseaseById(diseaseId);
+            const { disease, isQuickRef } = getDiseaseById(diseaseId);
             const author = document.getElementById('edit-author').value.trim();
             if (!author) { alert("Por favor, insira o nome do autor da edição."); return; }
             
-            Object.keys(disease).filter(key => typeof disease[key] === 'object' && !Array.isArray(disease[key]) && key !== 'lastUpdate' && key !== 'links').forEach(key => {
-                const textarea = document.getElementById(`edit-${key}`);
-                if (textarea) disease[key].text = textarea.value;
-            });
+            if (isQuickRef) {
+                disease.details = document.getElementById('edit-details').value;
+            } else {
+                ['epidemiology', 'diagnosis', 'management', 'prescription', 'redFlags', 'whenToAdmit'].forEach(key => {
+                    const textarea = document.getElementById(`edit-${key}`);
+                    if (textarea) disease[key] = textarea.value;
+                });
+            }
             disease.lastUpdate = { date: new Date().toISOString(), author: author };
             
             await saveAppData();
@@ -554,8 +440,12 @@
         // --- INICIALIZAÇÃO ---
         window.addEventListener('hashchange', renderCurrentPage);
         document.addEventListener('DOMContentLoaded', async () => {
-            await loadAppData();
-            renderCurrentPage();
+            try {
+                await loadAppData();
+                renderCurrentPage();
+            } catch(error) {
+                console.error("Falha na inicialização do app:", error);
+            }
         });
 
     </script>
