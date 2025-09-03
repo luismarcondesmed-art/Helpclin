@@ -39,13 +39,14 @@
                 return JSON.parse(__firebase_config);
             }
             
-            console.log("Ambiente de desenvolvimento não detectado. Buscando configuração do servidor Netlify em '/api/config'...");
-            const response = await fetch('/api/config');
-            console.log("Resposta do servidor:", response);
+            // Em produção, chama a função diretamente pelo seu caminho real no Netlify.
+            const functionUrl = '/.netlify/functions/config';
+            console.log(`Buscando configuração do servidor Netlify em '${functionUrl}'...`);
+            const response = await fetch(functionUrl);
 
             if (!response.ok) {
                 const errorText = await response.text();
-                throw new Error(`A chamada para /api/config falhou. Status: ${response.status}. Resposta: ${errorText}`);
+                throw new Error(`A chamada para '${functionUrl}' falhou. Status: ${response.status}. Resposta: ${errorText}`);
             }
             
             const config = await response.json();
@@ -291,7 +292,7 @@
             }
 
             async function callProxyAPI(endpoint, bodyPayload) {
-                 const proxyUrl = `/api/${endpoint}`; 
+                 const proxyUrl = `/.netlify/functions/${endpoint}`; 
                  try { 
                     const response = await fetch(proxyUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(bodyPayload) }); 
                     if (!response.ok) { 
@@ -473,15 +474,20 @@
                 let specialtiesHTML = specialties.map(s => `
                     <a href="#" class="specialty-link block py-2 px-3 rounded-md hover:bg-zinc-700" data-specialty="${s}" data-custom="false">${s}</a>
                 `).join('');
-
-                if (customSpecialties.length > 0) {
-                    specialtiesHTML += '<h3 class="text-sm font-semibold text-gray-400 mt-6 mb-2 px-3 uppercase">Meus Módulos</h3>';
-                    specialtiesHTML += customSpecialties.map(s => `
-                        <a href="#" class="specialty-link block py-2 px-3 rounded-md hover:bg-zinc-700" data-specialty="${s}" data-custom="true">${s}</a>
-                    `).join('');
-                }
                 
-                specialtiesNav.innerHTML = specialtiesHTML;
+                let customSpecialtiesHTML = customSpecialties.map(s => `
+                    <a href="#" class="specialty-link block py-2 px-3 rounded-md hover:bg-zinc-700" data-specialty="${s}" data-custom="true">${s}</a>
+                `).join('');
+
+                let finalHTML = '';
+                if (specialties.length > 0) {
+                     finalHTML += `<h3 class="text-sm font-semibold text-gray-400 mt-4 mb-2 px-3 uppercase">Guias (${ficha})</h3>${specialtiesHTML}`;
+                }
+                 if (customSpecialties.length > 0) {
+                    finalHTML += `<h3 class="text-sm font-semibold text-gray-400 mt-6 mb-2 px-3 uppercase">Meus Módulos</h3>${customSpecialtiesHTML}`;
+                }
+
+                specialtiesNav.innerHTML = finalHTML;
                 contentDisplay.innerHTML = `<div class="text-center text-gray-400 mt-16"><h2 class="text-2xl">Selecione uma especialidade</h2><p>Escolha um item no menu à esquerda para começar.</p></div>`;
 
                 document.querySelectorAll('.specialty-link').forEach(link => {
@@ -514,7 +520,7 @@
                             ${results.map(condition => `
                                 <div class="condition-card bg-zinc-700/50 hover:bg-zinc-700 p-4 rounded-lg cursor-pointer transition-all duration-200 border border-zinc-600 hover:border-emerald-500" data-doc-id="${condition.id}">
                                     <h3 class="font-semibold text-lg text-white">${condition.condition}</h3>
-                                    <p class="text-sm text-gray-400">${condition.specialty} (${condition.ficha || ''})</p>
+                                    <p class="text-sm text-gray-400">${condition.specialty} (${condition.isCustom ? 'Módulo Pessoal' : condition.ficha})</p>
                                 </div>
                             `).join('')}
                         </div>
