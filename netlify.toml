@@ -1,0 +1,9 @@
+# Este arquivo informa ao Netlify onde encontrar as funções do servidor.
+[functions]
+  directory = "netlify/functions/"
+
+# Esta regra redireciona as chamadas da API do seu site para a função do servidor.
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
